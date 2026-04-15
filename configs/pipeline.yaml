@@ -1,0 +1,50 @@
+#stages of data handling:
+  #- ingestion
+  #- validation
+  #- preprocessing
+  #- training
+  #- evaluation
+  #- explainability
+
+project:
+  name: adr-mlops
+
+paths:
+  raw_data: data/raw/
+  interim_data: data/interim/
+  processed_data: data/processed/
+  models: models/
+ 
+split:
+  test_size: 0.1
+  val_size: 0.1
+
+dataset:
+  name: "jessicali9530/kuc-hackathon-winter-2018"
+  train_file: "drugsComTrain_raw.csv"
+  target_column: "rating" 
+  text_column: "review"
+
+data:
+  simulate_noise: true
+  noise_level: 0.3
+
+agent:
+  enabled: true
+  use_cache: true
+  remove_punctuation: true
+
+pipeline:
+  run_data:true
+  run_training:true
+
+training:
+  model_name: bert-base-uncased
+  epochs: 1
+  batch_size: 8
+
+mlflow:
+  experiment_name: adr-nlp
+
+deployment:
+  api_port: 8000

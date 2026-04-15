@@ -1,0 +1,7 @@
+dataset:
+  source: kaggle
+  name: "jessicali9530/kuc-hackathon-winter-2018"
+
+paths:
+  raw: data/raw/
+  processed: data/processed/
