@@ -7,7 +7,7 @@ def split_data(df, config):
 
     target_col = config["dataset"].get("target_column", None)
 
-    stratify_col = df[target_col] if target_col else None
+    stratify_col = df[target_col] if target_col and target_col in df.columns else None
 
     # First split
     train_df, temp_df = train_test_split(
