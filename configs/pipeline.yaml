@@ -35,8 +35,8 @@ agent:
   remove_punctuation: true
 
 pipeline:
-  run_data:true
-  run_training:true
+  run_data: true
+  run_training: false
 
 training:
   model_name: bert-base-uncased

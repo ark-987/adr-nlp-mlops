@@ -1,12 +1,13 @@
+from logging import config
 import os
 import pandas as pd
 from datetime import datetime
 
 from src.data.ingest import download_kaggle_dataset
-from src.data.validate import validate_dataframe
+from src.data.validation.ge_validator import validate_dataframe
 from src.data.split import split_data
 from src.data.clean import introduce_noise
-from src.agent.cleaning_agent import CleaningAgent
+from src.cleaning_agent import CleaningAgent
 
 
 def run_data_pipeline(config):
@@ -52,23 +53,27 @@ def run_data_pipeline(config):
         agent = CleaningAgent(config)
         df[text_col] = df[text_col].apply(agent.clean)
 
-        validate_dataframe(df, "cleaned")
+    validate_dataframe(df, "cleaned")
 
-        df.to_csv(interim_path + f"cleaned_{timestamp}.csv", index=False)
+    df.to_csv(interim_path + f"cleaned_{timestamp}.csv", index=False)
 
-    # -------------------------
-    # 4. SPLIT DATA
-    # -------------------------
+# -------------------------
+# 4. SPLIT DATA
+# -------------------------
     train_df, val_df, test_df = split_data(df, config)
 
-    # -------------------------
-    # 5. SAVE FINAL DATASETS
-    # -------------------------
+# -------------------------
+# 5. SAVE FINAL DATASETS
+# -------------------------
+# Timestamped (for tracking)
     train_df.to_csv(processed_path + f"train_{timestamp}.csv", index=False)
     val_df.to_csv(processed_path + f"val_{timestamp}.csv", index=False)
     test_df.to_csv(processed_path + f"test_{timestamp}.csv", index=False)
 
+# Fixed filenames (for training)
+    train_df.to_csv(processed_path + "train.csv", index=False)
+    val_df.to_csv(processed_path + "val.csv", index=False)
+    test_df.to_csv(processed_path + "test.csv", index=False)
+
     print("Data pipeline completed successfully")
-
     return train_df, val_df, test_df
-

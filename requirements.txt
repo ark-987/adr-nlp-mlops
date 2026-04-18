@@ -8,17 +8,18 @@ python-dotenv>=0.5.1
 pandas
 numpy
 scikit-learn
+pyyaml
 
-torch
-transformers
-datasets
+#torch
+#transformers
+#atasets
 
-mlflow
+#mlflow
 great_expectations
-dvc
+#dvc
 
-fastapi
-uvicorn
+#fastapi
+#uvicorn
 
 python-dotenv
 pyyaml

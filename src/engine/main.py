@@ -1,6 +1,6 @@
 from src.utils.config_loader import load_config
 from src.pipelines.data_pipeline import run_data_pipeline
-from src.pipelines.training_pipeline import run_training_pipeline
+
 
 class Engine:
 
@@ -8,8 +8,9 @@ class Engine:
         self.config = config
 
     def run(self):
+        print("DEBUG CONFIG TYPE:", type(self.config))
+        print("DEBUG CONFIG VALUE:", self.config)
         print("Starting pipeline")
-
         train_df, val_df, test_df = None, None, None
 
         # -------------------------
@@ -23,6 +24,7 @@ class Engine:
         # TRAINING PIPELINE
         # -------------------------
         if self.config.get("pipeline", {}).get("run_training", True):
+            from src.pipelines.training_pipeline import run_training_pipeline
             print("Running training pipeline...")
 
             # Safety check
