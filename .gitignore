@@ -10,27 +10,20 @@ venv/
 # =========================
 __pycache__/
 *.py[cod]
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
 
 # =========================
-# Data (DO NOT VERSION DATA)
-# =========================
-data/raw/
-data/interim/
-data/processed/
-data/cache/
-.kaggle/
-# =========================
-# Models & Outputs
-# =========================
-models/
-mlruns/
-reports/
-
-# =========================
-# Environment & Secrets
+# Environment & Secrets & Credentials 
 # =========================
 .env
 .venv
+*.json
+.gcloud/
+keys/
 
 
 # =========================
@@ -51,6 +44,27 @@ reports/
 Thumbs.db
 
 # =========================
+# Data (DO NOT VERSION DATA)
+# =========================
+/data/raw/*
+/data/interim/*
+/data/processed/*
+/enriched_data/
+/data/cache/
+.kaggle/
+# --- Heavy Data (Managed by DVC) ---
+# We ignore the actual data files, but NOT the .dvc files
+!/data/**/*.dvc
+
+# =========================
+# Models & Outputs
+# =========================
+models/
+mlruns/
+reports/
+final_production_model/
+
+# =========================
 # Logs & Misc
 # =========================
 *.log
@@ -65,3 +79,27 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+test_output/ 
+
+# --- MLflow & Local Databases ---
+mlruns/
+mlflow.db
+mlflow.db-journal
+artifacts/
+
+# --- Model Weights & Local Checkpoints ---
+final_production_model/
+final_model_to_dvc/
+local_model_checkpoints/
+hpo_runs/
+hpo/
+*.bin
+*.safetensors
+*.pth
+
+# --- Experiment Tracking Logs (DVCLive) ---
+# We keep the metrics.json (small) but ignore the heavy plots/data
+dvclive_hpo/
+dvclive_final/plots/
+
+

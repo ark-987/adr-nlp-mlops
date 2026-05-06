@@ -1,79 +1,51 @@
-from logging import config
 import os
 import pandas as pd
 from datetime import datetime
-
-from src.data.ingest import download_kaggle_dataset
+from data.split import split_data
 from src.data.validation.ge_validator import validate_dataframe
-from src.data.split import split_data
-from src.data.clean import introduce_noise
-from src.cleaning_agent import CleaningAgent
-
+from src.cleaning_agent import CleaningAgent  # <--- NEW IMPORT
 
 def run_data_pipeline(config):
-
     raw_path = config["paths"]["raw_data"]
-    interim_path = config["paths"]["interim_data"]
     processed_path = config["paths"]["processed_data"]
-
-    os.makedirs(raw_path, exist_ok=True)
-    os.makedirs(interim_path, exist_ok=True)
-    os.makedirs(processed_path, exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-
-    # -------------------------
-    # 1. INGESTION
-    # -------------------------
-    download_kaggle_dataset(config)
-
-    df = pd.read_csv(raw_path + config["dataset"]["train_file"])
-
-    validate_dataframe(df, "raw")
-
-    df.to_csv(raw_path + f"raw_{timestamp}.csv", index=False)
-
-    # -------------------------
-    # 2. NOISE SIMULATION
-    # -------------------------
     text_col = config["dataset"]["text_column"]
 
+    os.makedirs(raw_path, exist_ok=True)
+    os.makedirs(processed_path, exist_ok=True)
 
-    if config["data"]["simulate_noise"]:
-       df[text_col] = df[text_col].apply(introduce_noise) 
+    bucket_name = config["gcs"]["bucket_name"]
+    raw_file = config["dataset"]["train_file"]
 
-    validate_dataframe(df, "noisy")
-
-    df.to_csv(interim_path + f"noisy_{timestamp}.csv", index=False)
+    # 1. INGEST FROM GCS
+    print(f"Ingesting: gs://{bucket_name}/raw/{raw_file}")
+    local_raw_path = os.path.join(raw_path, raw_file)
+    os.system(f"gcloud storage cp gs://{bucket_name}/raw/{raw_file} {local_raw_path}")
+         
+    df = pd.read_csv(local_raw_path)
+    validate_dataframe(df, "raw")
 
     # -------------------------
-    # 3. AI AGENT CLEANING
+    # 2. CLEAN DATA (AGENT)
     # -------------------------
     if config["agent"]["enabled"]:
+        print(f"Applying CleaningAgent to column: {text_col}...")
         agent = CleaningAgent(config)
         df[text_col] = df[text_col].apply(agent.clean)
 
-    validate_dataframe(df, "cleaned")
-
-    df.to_csv(interim_path + f"cleaned_{timestamp}.csv", index=False)
-
-# -------------------------
-# 4. SPLIT DATA
-# -------------------------
+    # 3. SPLIT DATA
+    print("Splitting data into Train/Val/Test...")
     train_df, val_df, test_df = split_data(df, config)
 
-# -------------------------
-# 5. SAVE FINAL DATASETS
-# -------------------------
-# Timestamped (for tracking)
-    train_df.to_csv(processed_path + f"train_{timestamp}.csv", index=False)
-    val_df.to_csv(processed_path + f"val_{timestamp}.csv", index=False)
-    test_df.to_csv(processed_path + f"test_{timestamp}.csv", index=False)
+    # 4. SAVE & UPLOAD
+    splits = {"train.csv": train_df, "val.csv": val_df, "test.csv": test_df}
 
-# Fixed filenames (for training)
-    train_df.to_csv(processed_path + "train.csv", index=False)
-    val_df.to_csv(processed_path + "val.csv", index=False)
-    test_df.to_csv(processed_path + "test.csv", index=False)
+    for filename, dataframe in splits.items():
+        local_filepath = os.path.join(processed_path, filename)
+        dataframe.to_csv(local_filepath, index=False)
+                 
+        gcs_dest = f"gs://{bucket_name}/{config['gcs']['processed_folder']}/{filename}"
+        os.system(f"gcloud storage cp {local_filepath} {gcs_dest}")
 
-    print("Data pipeline completed successfully")
+    print("Data pipeline completed!")
     return train_df, val_df, test_df
+

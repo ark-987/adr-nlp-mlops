@@ -2,6 +2,7 @@ adr-nlp
 ==============================
 
 ADR classification using NLP of noisy dataset with transformer driven by an engine within MLOPs workflow
+I built a transformer-based NLP model using BioBERT to classify drug reviews as containing adverse drug reactions or not. The model uses attention to understand context across the entire sentence, and I optionally enrich the input with biomedical named entities to highlight symptoms. I fine-tune the model on an imbalanced dataset using appropriate metrics like F1 and recall, and track experiments with MLflow before deploying via Docker.
 
 Project Organization
 ------------

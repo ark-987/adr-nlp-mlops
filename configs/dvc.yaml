@@ -1,0 +1,66 @@
+stages:
+  ingest:
+    cmd: python src/data/ingest.py
+    deps:
+      - src/data/ingest.py
+      - configs/pipeline.yaml
+    outs:
+      - data/raw/drugsComTrain_raw.csv
+
+  data_pipeline:
+    # Orchestrates the CleaningAgent
+    cmd: python src/pipelines/data_pipeline.py
+    deps:
+      - src/pipelines/data_pipeline.py
+      - src/cleaning_agent.py
+      - data/raw/drugsComTrain_raw.csv
+    outs:
+      - data/processed/clean.csv
+
+  split:
+    cmd: python src/data/split_data.py
+    deps:
+      - src/data/split_data.py
+      - data/processed/clean.csv
+      - configs/pipeline.yaml
+    outs:
+      - data/processed/train.csv
+      - data/processed/val.csv
+      - data/processed/test.csv
+  
+  train:
+    # Use the entry point script we just finalized
+    cmd: python src/train_model.py
+    deps:
+      - src/train_model.py
+      - src/pipelines/training_pipeline.py
+      - src/features/build_features.py
+      - data/processed/train.csv
+      - data/processed/val.csv
+    params:
+      - configs/pipeline.yaml:
+          - training.epochs
+          - training.batch_size
+          - training.learning_rate
+          - training.model_name
+    outs:
+      # Ensure this matches 'output_dir' in your config/script
+      - final_production_model: 
+          cache: true
+    metrics:
+      - logs/metrics.json:
+          cache: false
+
+  explainability:
+    # Orchestrator handles the connection between model and XAIEngine
+    cmd: python src/orchestrator.py
+    deps:
+      - src/orchestrator.py
+      - src/engine/explainerAI.py
+      - final_production_model
+      - data/processed/test.csv
+    # Optional: track the config toggle so XAI re-runs if you flip the switch
+    params:
+      - configs/pipeline.yaml:
+          - pipeline.run_xai
+ 
