@@ -1,8 +1,33 @@
 adr-nlp
 ==============================
 
-ADR classification using NLP of noisy dataset with transformer driven by an engine within MLOPs workflow
-I built a transformer-based NLP model using BioBERT to classify drug reviews as containing adverse drug reactions or not. The model uses attention to understand context across the entire sentence, and I optionally enrich the input with biomedical named entities to highlight symptoms. I fine-tune the model on an imbalanced dataset using appropriate metrics like F1 and recall, and track experiments with MLflow before deploying via Docker.
+ADR-NLP MLOps Pipeline
+An automated data pipeline designed to detect and process Adverse Drug Reaction (ADR) mentions in medical reviews. This project implements a modular architecture for data ingestion, cleaning, and model training using ClinicalBioBERT.
+ Key Features
+GCS Ingestion: Automated data retrieval from Google Cloud Storage (gs://adr-nlp).
+Cleaning Agent: A custom text processing engine that normalises whitespace and strips noise while preserving medical punctuation essential for BERT tokenisation.
+Validation: Integrated Data Validation using Great Expectations to ensure raw data schema integrity.
+Experiment Tracking: Fully integrated with MLflow for tracking hyperparameters and model metrics.
+XAI Ready: Includes SHAP integration for model explainability.
+ Tech Stack
+Language: Python 3.9+
+Storage: Google Cloud Storage (GCS)
+NLP: Transformers (ClinicalBioBERT), Pandas, Regex
+MLOps: MLflow, DVC (Data Version Control)
+Validation: Great Expectations
+📁 Pipeline Workflow
+Ingestion: Pulls drugsComTrain_raw.csv from GCS to data/raw/.
+Cleaning: CleaningAgent processes the review column based on pipeline.yaml toggles.
+Validation: Checks data quality before passing to the split stage.
+Splitting: Partitions data into Train, Val, and Test sets.
+Versioning: Processed splits are uploaded back to GCS for versioned training access.
+⚙️ Configuration
+Modify configs/pipeline.yaml to toggle pipeline stages:
+yaml
+pipeline:
+  run_data: true        # Ingest & Process
+  run_training: true    # BioBERT Training
+  run_xai: true         # SHAP Explanations
 
 Project Organization
 ------------
@@ -55,122 +80,5 @@ Project Organization
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
 
 
-
-
-MLOPs ARCHITECTURE OF ADR NLP ORCHESTRATED BY AN ENGINE WITH AN AI AGENT INTEGRATION 
-
-                             ┌────────────────────────────┐
-                             │        CONFIG (YAML)       │
-                             │  - pipeline.yaml           │
-                             │  - agent settings          │
-                             │  - paths                   │
-                             └─────────────┬──────────────┘
-                                           │
-                                           ▼
-                             ┌────────────────────────────┐
-                             │        ENGINE              │  
-                             │  (Custom Orchestrator)     │
-                             └─────────────┬──────────────┘
-                                           │
-        ┌──────────────────────────────────┼──────────────────────────────────┐
-        │                                  │                                  │
-        ▼                                  ▼                                  ▼
-┌──────────────┐                  ┌──────────────┐                  ┌──────────────────────┐
-│  Ingestion   │                  │  Validation  │                  │     Agent Layer      │
-│ (Kaggle API) │                  │ (Great Exp.) │                  │   (LLM Cleaning)     │
-└──────┬───────┘                  └──────┬───────┘                  └─────────┬────────────┘
-       │                                 │                                   │
-       ▼                                 ▼                                   ▼
-                       ┌────────────────────────────────────────────────────────┐
-                       │                AGENT CONTROL ZONE                       │
-                       │                                                        │
-                       │   ┌──────────────┐      ┌──────────────┐               │
-                       │   │   CACHE      │◄────►│ CleaningAgent│               │
-                       │   │ (JSON/Redis) │      │ (LangChain)  │               │
-                       │   └──────┬───────┘      └──────┬───────┘               │
-                       │          │                      │                       │
-                       │          ▼                      ▼                       │
-                       │   ┌──────────────────────────────────────┐              │
-                       │   │ Logging / Tracking Layer             │              │
-                       │   │ (MLflow + structured logs)           │              │
-                       │   └──────────────────────────────────────┘              │
-                       └──────────────────────┬─────────────────────────────────┘
-                                              │
-                                              ▼
-                    ┌────────────────────────────────────────────┐
-                    │         CLEANED / AUGMENTED DATA           │
-                    └──────────────────────────┬─────────────────┘
-                                               │
-                                               ▼
-                                    ┌──────────────────┐
-                                    │ Preprocessing    │
-                                    └────────┬─────────┘
-                                             │
-                                             ▼
-                                    ┌──────────────────┐
-                                    │ Training (BERT)  │
-                                    │ Hugging Face     │
-                                    └────────┬─────────┘
-                                             │
-                                             ▼
-                                    ┌──────────────────┐
-                                    │ Evaluation + XAI │
-                                    └────────┬─────────┘
-                                             │
-                                             ▼
-                                    ┌──────────────────┐
-                                    │ MLflow Registry  │
-                                    └────────┬─────────┘
-                                             │
-                                             ▼
-                                    ┌──────────────────┐
-                                    │ Deployment       │
-                                    │ (FastAPI + Docker)
-                                    └────────┬─────────┘
-                                             │
-                                             ▼
-                                    ┌──────────────────┐
-                                    │ Monitoring       │
-                                    │ Prometheus/Grafana
-                                    └──────────────────┘
-
-
-──────────────────────────────────────────────────────────────────────────────
-🚀 CI/CD LAYER (triggered on git push / PR)
-──────────────────────────────────────────────────────────────────────────────
-
-        Developer Push → GitHub Repo
-                         │
-                         ▼
-        ┌──────────────────────────────────────────────┐
-        │:contentReference[oaicite:1]{index=1} CI/CD Pipeline │
-        └──────────────────────────────────────────────┘
-                         │
-     ┌───────────────────┼───────────────────────────────┐
-     │                   │                               │
-     ▼                   ▼                               ▼
-┌──────────────┐   ┌──────────────┐               ┌──────────────────┐
-│ Linting      │   │ Unit Tests   │               │ Data Validation  │
-│ (flake8)     │   │ (pytest)     │               │ (Great Exp.)     │
-└──────┬───────┘   └──────┬───────┘               └────────┬─────────┘
-       │                  │                                │
-       └──────────────────┴────────────────────────────────┘
-                              │
-                              ▼
-                     ┌──────────────────┐
-                     │ Build Docker     │
-                     │ Image            │
-                     └────────┬─────────┘
-                              │
-                              ▼
-                     ┌──────────────────┐
-                     │ Push to Registry │
-                     └────────┬─────────┘
-                              │
-                              ▼
-                     ┌──────────────────┐
-                     │ Deploy API       │
-                     │ (FastAPI)        │
-                     └──────────────────┘
 
 
