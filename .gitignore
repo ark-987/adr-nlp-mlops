@@ -52,6 +52,10 @@ Thumbs.db
 /enriched_data/
 /data/cache/
 .kaggle/
+data/pre_process/*.csv
+data/processed/*.csv
+data/raw/*.csv
+
 # --- Heavy Data (Managed by DVC) ---
 # We ignore the actual data files, but NOT the .dvc files
 !/data/**/*.dvc
