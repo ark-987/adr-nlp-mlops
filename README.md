@@ -3,18 +3,30 @@ adr-nlp
 
 ADR-NLP MLOps Pipeline
 An automated data pipeline designed to detect and process Adverse Drug Reaction (ADR) mentions in medical reviews. This project implements a modular architecture for data ingestion, cleaning, and model training using ClinicalBioBERT.
+
  Key Features
+ 
 GCS Ingestion: Automated data retrieval from Google Cloud Storage (gs://adr-nlp).
+
 Cleaning Agent: A custom text processing engine that normalises whitespace and strips noise while preserving medical punctuation essential for BERT tokenisation.
+
 Validation: Integrated Data Validation using Great Expectations to ensure raw data schema integrity.
+
 Experiment Tracking: Fully integrated with MLflow for tracking hyperparameters and model metrics.
+
 XAI Ready: Includes SHAP integration for model explainability.
+
  Tech Stack
 Language: Python 3.9+
+
 Storage: Google Cloud Storage (GCS)
+
 NLP: Transformers (ClinicalBioBERT), Pandas, Regex
+
 MLOps: MLflow, DVC (Data Version Control)
+
 Validation: Great Expectations
+
 📁 Pipeline Workflow
 Ingestion: Pulls drugsComTrain_raw.csv from GCS to data/raw/.
 Cleaning: CleaningAgent processes the review column based on pipeline.yaml toggles.
@@ -41,7 +53,7 @@ Project Organization
     │   ├── processed      
     │   └── raw            
     │
-    ├── docs               <- A default Sphinx document tree; see sphinx-doc.org for details
+    ├── docs               
     │
     ├── models             <- Trained and serialized models, model predictions, or model summaries
     │
