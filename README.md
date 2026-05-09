@@ -41,6 +41,45 @@ pipeline:
   run_training: true    # BioBERT Training
   run_xai: true         # SHAP Explanations
 
+  
+```mermaid
+flowchart TD
+    %% Define External Infrastructure
+    subgraph GitHub_Actions [CI/CD: GitHub Actions]
+        direction TB
+        G1[Trigger: Push to Main] --> G2[Run Tests]
+        G2 --> G3[Run DVC Pipeline]
+    end
+
+    %% DVC Data & Training Pipeline
+    subgraph DVC_Pipeline [Data & Training: DVC]
+        node4[ingest] --> node1[data_pipeline]
+        node1 --> node7[split]
+        node7 --> node8[train]
+        node8 --> node2[explainability]
+        node7 --> node2
+    end
+
+    %% Deployment Infrastructure
+    subgraph Deployment [Deployment: Docker & FastAPI]
+        node8 --> node5[package_api: Docker Build]
+        node5 --> F1[FastAPI Server: Live API]
+    end
+
+    %% Orchestration & Monitoring
+    subgraph Operations [Operations: Airflow & Monitoring]
+        A1[Apache Airflow: Scheduler] -- Triggers --> G3
+        node8 --> node3[generate_alerts]
+        node5 --> node6[setup_monitoring]
+        F1 -- Metrics --> M1[Prometheus]
+        M1 -- Dashboard --> M2[Grafana]
+        M1 -- Trigger --> S1[Slack Alert]
+    end
+
+    %% Connect CI/CD to Pipeline
+    G3 --> node4
+```
+
 Project Organization
 ------------
 
