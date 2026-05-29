@@ -1,0 +1,34 @@
+stages:
+  ingest_and_process:
+    cmd: python src/data_pipeline.py
+    deps:
+      - src/data_pipeline.py
+      - src/ingest.py
+      - src/split.py
+      - src/cleaning_agent.py
+      - config/pipeline.yaml
+    outs:
+      - data/processed/split/train.csv:
+          persist: false
+      - data/processed/split/val.csv:
+          persist: false
+      - data/processed/split/test.csv:
+          persist: false
+
+  train:
+    cmd: python src/training_pipeline.py
+    deps:
+      - src/training_pipeline.py
+      - data/processed/split/train.csv
+      - data/processed/split/val.csv
+    params:
+      - training.model_name
+      - training.epochs
+      - training.batch_size
+      
+    outs:
+      - models/adr-nlp-final/model.safetensors:  # <-- CHANGED TO MATCH THE TRUE FILE
+          persist: true
+
+
+

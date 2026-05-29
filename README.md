@@ -1,3 +1,7 @@
+# Project Name
+
+Short description of what this tool/project does.
+
 adr-nlp
 ==============================
 
@@ -130,6 +134,40 @@ Project Organization
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
 
+# Project Name
+
+Short description of what this tool does.
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+Ensure you have Python 3.10+ installed.
+
+### 2. Installation & Setup
+```bash
+# Clone the repository
+git clone <repo-url>
+cd <repo-name>
+
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Environment Variables
+Copy the template file and fill in your private API keys:
+```bash
+cp .env.example .env
+```
+
+## 💻 How to Run
+To run the main pipeline, execute:
+```bash
+python main.py
+```
 
 
 
