@@ -1,0 +1,63 @@
+schema: '2.0'
+stages:
+  ingest_and_process:
+    cmd: python src/data_pipeline.py
+    deps:
+    - path: config/pipeline.yaml
+      hash: md5
+      md5: 9f7b7f6ace31dabbd4b3acf311c35f6e
+      size: 1256
+    - path: src/cleaning_agent.py
+      hash: md5
+      md5: b66cd3a57bb25f5cd2b0ea17700937bf
+      size: 825
+    - path: src/data_pipeline.py
+      hash: md5
+      md5: a0499e19cafbea6ec16555f0134e9526
+      size: 3202
+    - path: src/ingest.py
+      hash: md5
+      md5: d99a8d99da9a149d453b8fafed546d03
+      size: 1865
+    - path: src/split.py
+      hash: md5
+      md5: 990e95cc3f3f3d39b4c4788fa85ab0f9
+      size: 2086
+    outs:
+    - path: data/processed/split/test.csv
+      hash: md5
+      md5: 81ac4e398228cf9ea2a0cd25ad63e8bb
+      size: 496
+    - path: data/processed/split/train.csv
+      hash: md5
+      md5: 3794f31d3dd4c81c450f57c2fef21f3c
+      size: 2815
+    - path: data/processed/split/val.csv
+      hash: md5
+      md5: 66bfacde2691a03b6168c984f8ab042a
+      size: 523
+  train:
+    cmd: python src/training_pipeline.py
+    deps:
+    - path: data/processed/split/train.csv
+      hash: md5
+      md5: 3794f31d3dd4c81c450f57c2fef21f3c
+      size: 2815
+    - path: data/processed/split/val.csv
+      hash: md5
+      md5: 66bfacde2691a03b6168c984f8ab042a
+      size: 523
+    - path: src/training_pipeline.py
+      hash: md5
+      md5: 9a124c995af9888809eb6c145dbd3f21
+      size: 8154
+    params:
+      params.yaml:
+        training.batch_size: 2
+        training.epochs: 1
+        training.model_name: emilyalsentzer/Bio_ClinicalBERT
+    outs:
+    - path: models/adr-nlp-final/model.safetensors
+      hash: md5
+      md5: e7710874ec66450ee370bf25b095adac
+      size: 433286148

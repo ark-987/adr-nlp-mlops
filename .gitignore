@@ -1,7 +1,22 @@
+#Sphinx creates a hidden or local build folder (usually called _build or build) containing the final HTML files
+#Sphinx automatically scans for doc strings, extracts texts, generates a professional webpage look like this:
+#A searchable sidebar of all your modules.
+#A clear list of your functions, their descriptions, and their arguments.
+#Hosted guides on platforms like Read the Docs or GitHub Pages.
+#such a website is not needed ic project will not become opensource and will just be shared with team
+
+# Sphinx documentation build outputs
+docs/_build/
+docs/build/
+doc/_build/
+doc/build/
+
+
+
 # =========================
-# Virtual Environments
+# Virtual Environments #added to .gitignore to avoid uploading thousands of internal dependency files to GitHub.
 # =========================
-.venv/
+.venv/ #the dot before venv makes it a hidden folder in Unix-based systems, which is a common convention for virtual environments
 env/
 venv/
 
@@ -46,15 +61,23 @@ Thumbs.db
 # =========================
 # Data (DO NOT VERSION DATA)
 # =========================
+# Ignore the contents of these folders (* wildcard ignores all files inside a folder but allows Git to scan the folder)
 /data/raw/*
-/data/interim/*
+/data/interim/* #the leading forward slash refers to data folder at root of repo aa opposed to data folder in subfolder
 /data/processed/*
-/enriched_data/
-/data/cache/
-.kaggle/
-data/pre_process/*.csv
+/enriched_data/*
+/data/cache/* # Cache files can be large and are typically not needed in version control but folder maybe expected to exist by code (if not found get error)
+data/pre_process/*.csv #this data folder existed in a subfolder in cookie cutter template but I have modified the folder structure
 data/processed/*.csv
 data/raw/*.csv
+
+
+# Ignore entire directories
+.kaggle/
+
+# Whitelist .gitkeep files (add exception rule with !)so the folders stay visible and folder tree recreated in repo
+!**/\.gitkeep
+
 
 # --- Heavy Data (Managed by DVC) ---
 # We ignore the actual data files, but NOT the .dvc files

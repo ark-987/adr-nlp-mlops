@@ -1,4 +1,3 @@
-# src/cleaning_agent.py
 import re
 
 class CleaningAgent:
@@ -12,7 +11,7 @@ class CleaningAgent:
         # 1. Essential: Normalize whitespace (crucial for BERT tokenization)
         text = " ".join(text.split()).strip()
 
-        # 2. Conditional: Lowercasing (only if using an uncased model, ClinicalBioBert is caseed so 'false' toggle)
+        # 2. Conditional: Lowercasing (only if using an uncased model, ClinicalBioBert is cased so 'false' toggle)
         if self.config["agent"].get("lowercase", False):
             text = text.lower()
 
@@ -22,3 +21,5 @@ class CleaningAgent:
             text = re.sub(r"[^a-zA-Z0-9\s.,?!]", "", text)
 
         return text
+
+

@@ -1,0 +1,5 @@
+training:
+  model_name: "emilyalsentzer/Bio_ClinicalBERT"  # Your original production model
+  epochs: 1
+  batch_size: 2
+

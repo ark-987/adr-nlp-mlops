@@ -1,4 +1,6 @@
 [core]
-    remote = gcs-storage
+    remote = remote_storage
 ['remote "gcs-storage"']
     url = gs://adr-nlp/dvc/dvc-data
+['remote "remote_storage"']
+    url = ../data/mock_dvc_remote

@@ -1,0 +1,51 @@
+project:
+  name: adr-nlp
+
+gcp:
+  project_id: "project-edc577ab-2a6a-4016-89e"
+  bucket_name: "adr-nlp" 
+  raw_gcs_path: "dummy_run/raw/drugsComTrain_raw.csv"
+  processed_gcs_dir: "dummy_run/preprocessed"
+  model_gcs_dir: "dummy_run/models/adr-nlp-final"
+
+dataset:
+  name: "engsaiedali/drugscomtrain-raw"
+  text_column: "review"
+  target_column: "rating"
+
+agent:
+  lowercase: false
+  remove_noise_chars: true
+
+pipeline:
+  run_data: true
+  run_training: true
+  run_xai: true
+
+split:
+  test_size: 0.1
+  val_size: 0.1
+
+mlflow:
+  tracking_uri: "file:///C:/Users/arkha/adr-nlp-mlops/mlruns"  # Changes server routing to local disktracking_uri: "http://your-remote-mlflow-server-ip:5000"
+  experiment_name: "adr-nlp-clinical-classification"
+  registered_model_name: "biobert_adr_classifier"
+
+# FLAT ROOT PARAMETERS FOR DVC COMPATIBILITY
+training_model_name: "emilyalsentzer/Bio_ClinicalBERT"
+training_epochs: 1
+training_batch_size: 2
+
+paths:
+  dummy_data: "data/raw/dummy/drugsComTrainSMALL.csv"
+  raw_data_dir: "data/raw"
+  raw_data_file: "data/raw/drugsComTrain_raw.csv"
+  cleaned_data_file: "data/processed/drugsComTrain_cleaned.csv"
+  split_dir: "data/processed/split"
+  models: "models/adr-nlp-final"
+
+
+
+
+
+
