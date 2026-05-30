@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s  # Scrape telemetry metrics every 15 seconds
+
+scrape_configs:
+  - job_name: 'fastapi-adr-service'
+    scrape_timeout: 10s
+    metrics_path: '/metrics'  # Endpoint hosted by your serving app
+    static_configs:
+      - targets: ['api:8000'] # Points to the container running your API

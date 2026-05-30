@@ -4,10 +4,10 @@ project:
 gcp:
   project_id: "project-edc577ab-2a6a-4016-89e"
   bucket_name: "adr-nlp" 
-  raw_gcs_path: "dummy_run/raw/drugsComTrain_raw.csv"
-  processed_gcs_dir: "dummy_run/preprocessed"
-  model_gcs_dir: "dummy_run/models/adr-nlp-final"
-
+  # This tells FastAPI exactly which file to download
+  model_gcs_file: "final_model.zip" 
+  raw_gcs_path: "data/drugsComTrain_raw.csv"
+  
 dataset:
   name: "engsaiedali/drugscomtrain-raw"
   text_column: "review"
@@ -27,14 +27,14 @@ split:
   val_size: 0.1
 
 mlflow:
-  tracking_uri: "file:///C:/Users/arkha/adr-nlp-mlops/mlruns"  # Changes server routing to local disktracking_uri: "http://your-remote-mlflow-server-ip:5000"
+  tracking_uri: "http://your-remote-mlflow-server-ip:5000"
   experiment_name: "adr-nlp-clinical-classification"
   registered_model_name: "biobert_adr_classifier"
 
-# FLAT ROOT PARAMETERS FOR DVC COMPATIBILITY
+# ROOT PARAMETERS
 training_model_name: "emilyalsentzer/Bio_ClinicalBERT"
-training_epochs: 1
-training_batch_size: 2
+training_epochs: 5
+training_batch_size: 16
 
 paths:
   dummy_data: "data/raw/dummy/drugsComTrainSMALL.csv"
@@ -42,7 +42,10 @@ paths:
   raw_data_file: "data/raw/drugsComTrain_raw.csv"
   cleaned_data_file: "data/processed/drugsComTrain_cleaned.csv"
   split_dir: "data/processed/split"
-  models: "models/adr-nlp-final"
+  # Isolate your production model local folder
+  models: "models/production_live_adr_nlp"
+
+
 
 
 

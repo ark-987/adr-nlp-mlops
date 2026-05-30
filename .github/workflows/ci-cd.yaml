@@ -1,0 +1,62 @@
+name: MLOps Continuous Integration & Deployment
+
+on:
+  push:
+    branches: [ main ]  # Triggers pipeline operations automatically when code lands on main
+  pull_request:
+    branches: [ main ]  # Run verification validations on incoming Pull Requests
+
+jobs:
+  code-quality-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python Sandbox Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Architecture Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          pip install -r requirements.txt
+
+      - name: Execute Linting Syntax Check (Flake8)
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats formatting warnings gracefully without breaking runs
+          flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run Test Suite Assertions (PyTest)
+        run: |
+          export PYTHONPATH="."
+          pytest tests/
+
+  build-and-ship-container:
+    needs: code-quality-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }} # Secure Service Account secret variable
+
+      - name: Configure Cloud CLI Utilities
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authorize Docker for Google Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      - name: Assemble and Push Production Image Container
+        run: |
+          docker build -t europe-west1-docker.pkg.dev/project-edc577ab-2a6a-4016-89e/adr-nlp-repo/api-serving:latest .
+          docker push europe-west1-docker.pkg.dev/project-edc577ab-2a6a-4016-89e/adr-nlp-repo/api-serving:latest

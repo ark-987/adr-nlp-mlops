@@ -2,26 +2,32 @@ import os
 import yaml
 
 def load_config():
-    """Locates and loads the pipeline.yaml file from the config directory securely."""
-    # Calculates path dynamically: go up one level from src/ to project root
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    config_path = os.path.join(base_dir, "config", "pipeline.yaml")
-    
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Critical Error: Configuration schema missing at {config_path}")
-        
-    with open(config_path, "r") as f:
+    """
+    Loads pipeline.yaml using absolute path resolution to guarantee
+    successful lookups under local testing, Uvicorn, or Docker run contexts.
+    """
+    # 1. Determine the absolute directory path of the root project workspace
+    # __file__ is src/config_loader.py -> parent is src/ -> grandparent is root/
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(current_file_dir, ".."))
+
+    # 2. Map direct absolute paths to your config directory positions
+    config_path = os.path.join(project_root, "config", "pipeline.yaml")
+    fallback_path = os.path.join(project_root, "pipeline.yaml")
+
+    # 3. Choose the active file pathway location
+    final_path = config_path if os.path.exists(config_path) else fallback_path
+
+    if not os.path.exists(final_path):
+        raise FileNotFoundError(f"Configuration file not found via absolute mapping at: {final_path}")
+
+    # 4. Parse your flat YAML structure
+    with open(final_path, "r") as f:
         config = yaml.safe_load(f)
         
-    # AUTOMATED MAPPING: Safely reconstructs the 'training' dictionary if flattened for DVC
-    if "training" not in config or config["training"] is None:
-        print("[CONFIG LOADER] Reconstructing training dictionary from flat DVC keys...")
-        config["training"] = {
-            "model_name": config.get("training_model_name", "emilyalsentzer/Bio_ClinicalBERT"),
-            "epochs": config.get("training_epochs", 1),
-            "batch_size": config.get("training_batch_size", 2)
-        }
-        
     return config
+
+
+
 
 

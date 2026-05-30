@@ -25,3 +25,9 @@ dvc[gcs]>=3.0.0
 # --- LOCAL VERIFICATION TESTING ---
 pytest>=7.3.0
 flake8
+
+# --- PRODUCTION SERVING LAYER ---
+fastapi>=0.110.0
+pydantic>=2.6.0
+uvicorn[standard]>=0.28.0
+prometheus-fastapi-instrumentator>=6.1.0  
