@@ -1,6 +1,6 @@
-# src/server.py
 import os
 import zipfile
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import torch
@@ -10,24 +10,14 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from src.config_loader import load_config
 from prometheus_fastapi_instrumentator import Instrumentator
 
-app = FastAPI(
-    title="BioBERT ADR Classifier API", 
-    description="Production serving layer for evaluating Adverse Drug Reactions."
-)
-#ADD THIS HOOK LAYER!
-# This automatically creates and updates the /metrics gateway for Prometheus
-Instrumentator().instrument(app).expose(app)
 # Global memory hooks for the model assets
 model = None
 tokenizer = None
 config = None
 
-class PredictionRequest(BaseModel):
-    review: str
-
-@app.on_event("startup")
-def startup_load_pipeline():
-    """Executes automatically once when the FastAPI server initializes."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Modern Lifespan Context Manager handling secure system boots and cleanups."""
     global model, tokenizer, config
     print("[BOOT] Loading unified pipeline configurations...")
     config = load_config()
@@ -63,14 +53,48 @@ def startup_load_pipeline():
         print(f"[FATAL INITIALIZATION ERROR] Cloud connection failed: {e}")
         raise RuntimeError(f"Could not load remote cloud production assets: {e}")
 
-    # 3. Load weights out of local directory space straight into active application memory
+    # 🛠️ WORKAROUND: Recursively hunt down where config.json actually landed
+    actual_load_dir = None
+    for root, dirs, files in os.walk(local_extract_dir):
+        if "config.json" in files:
+            actual_load_dir = root
+            break
+
+    if actual_load_dir is None:
+        raise FileNotFoundError(f"CRITICAL: Could not find config.json anywhere inside {local_extract_dir}")
+        
+    print(f"[BOOT] Dynamic directory resolution successful! Loading model from: {actual_load_dir}")
+
+    # 3. Load weights into active application memory
     print(f"[BOOT] Loading weight arrays into application RAM...")
-    tokenizer = AutoTokenizer.from_pretrained(local_extract_dir)
-    model = AutoModelForSequenceClassification.from_pretrained(local_extract_dir)
+    
+    # Pull pristine BioBERT tokenization mappings straight from Hugging Face hub
+    tokenizer = AutoTokenizer.from_pretrained("dmis-lab/biobert-v1.1", use_fast=True)
+    
+    # Load your custom 200k-review trained model weights using the resolved path
+    model = AutoModelForSequenceClassification.from_pretrained(actual_load_dir)
     
     # Enforce evaluation context mode (turns off dropout, freeze gradients)
     model.eval()
     print("[BOOT] Serving engine successfully activated. Ready for text streaming requests.")
+    
+    yield  # Hand over control to FastAPI to start accepting HTTP requests
+    
+    print("[SHUTDOWN] Cleaning up server resources...")
+
+
+# Initialize FastAPI utilizing the modern lifespan framework hook
+app = FastAPI(
+    title="BioBERT ADR Classifier API", 
+    description="Production serving layer for evaluating Adverse Drug Reactions.",
+    lifespan=lifespan
+)
+
+# This automatically creates and updates the /metrics gateway for Prometheus
+Instrumentator().instrument(app).expose(app)
+
+class PredictionRequest(BaseModel):
+    review: str
 
 @app.get("/health")
 def health_check():
@@ -111,3 +135,4 @@ if __name__ == "__main__":
     import uvicorn
     # Forces Uvicorn to look at the module path relative to your repository root folder
     uvicorn.run("src.api:app", host="127.0.0.1", port=8000, reload=True)
+

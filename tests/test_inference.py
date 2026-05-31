@@ -1,31 +1,50 @@
-import mlflow.transformers
-import torch
+import pytest
+import requests
 
-# 1. Point to your local tracking database
-mlflow.set_tracking_uri("sqlite:///mlflow.db")
-
-# 2. Load the model directly from the Registry
-# Use the name you registered in the training script
-#model_uri = "models:models/biobert_adr_classifier/" 
-#logger.info(f"Loading model from {model_uri}...")
-
-#change to local path for testing
-# Instead of "models:/..." use the local path DVC just created
-model_path = "./models/adr-nlp-final" 
+# Define the target server address constants explicitly
+BASE_URL = "http://127.0.0.1:8000"
 
 
-# This loads both the model and the tokenizer automatically
-pipe = mlflow.transformers.load_model(model_path)
+def test_api_liveness_probe():
+    """Verify that the system health endpoint returns status healthy."""
+    target_url = f"{BASE_URL}/health"
+    response = requests.get(target_url)
 
-# 3. Define test cases
-test_reviews = [
-    "I took this medication and developed a severe skin rash within an hour.", # Expected: ADR (1)
-    "The pills arrived on time and the packaging was great."                  # Expected: No ADR (0)
-]
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy"}
 
-# 4. Run the test
-print("\n--- Inference Results ---")
-for review in test_reviews:
-    result = pipe(review)
-    print(f"Review: {review}")
-    print(f"Result: {result}\n")
+
+def test_prometheus_metrics_gateway():
+    """Verify that Prometheus telemetry metrics are exposed successfully."""
+    target_url = f"{BASE_URL}/metrics"
+    response = requests.get(target_url)
+
+    assert response.status_code == 200
+    assert "http_requests_total" in response.text
+
+
+def test_model_inference_positive_adr():
+    """Verify that a positive adverse drug reaction payload processes cleanly."""
+    target_url = f"{BASE_URL}/predict"
+    payload = {
+        "review": "I took this medication and developed a severe skin rash within an hour."
+    }
+
+    response = requests.post(target_url, json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "prediction_class_id" in data
+    assert "class_probabilities" in data
+
+
+def test_model_inference_empty_payload():
+    """Verify that empty request inputs are caught by system validation handling."""
+    target_url = f"{BASE_URL}/predict"
+    payload = {"review": "   "}
+
+    response = requests.post(target_url, json=payload)
+    assert response.status_code == 400
+
+
+
