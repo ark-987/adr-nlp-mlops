@@ -6,37 +6,43 @@ flowchart TD
     %% Define External Infrastructure
     subgraph GitHub_Actions [CI/CD: GitHub Actions]
         direction TB
-        G1[Trigger: Push to Main] --> G2[Run Tests]
-        G2 --> G3[Run DVC Pipeline]
+        G1[Trigger: Push to Main] --> G2[Run Tests & Linting]
+        G2 --> G3[Run DVC Pipeline Checks]
     end
 
     %% DVC Data & Training Pipeline
     subgraph DVC_Pipeline [Data & Training: DVC]
-        node4[ingest] --> node1[data_pipeline]
-        node1 --> node7[split]
-        node7 --> node8[train]
-        node8 --> node2[explainability]
+        node4[src/ingest.py] --> node1[src/data_pipeline.py]
+        node1 --> node7[src/split.py]
+        node7 --> node8[src/training_pipeline.py]
+        node8 --> node2[src/explainerAI.py - SHAP]
         node7 --> node2
     end
 
-    %% Deployment Infrastructure
-    subgraph Deployment [Deployment: Docker & FastAPI]
-        node8 --> node5[package_api: Docker Build]
-        node5 --> F1[FastAPI Server: Live API]
+    %% Deployment Infrastructure & Local Services
+    subgraph Deployment [Deployment: Docker Architecture]
+        node8 --> node5[Package Containers: Docker Build]
+        node5 --> F1[FastAPI Server - api.py: Port 8000]
+        node5 --> S2[Streamlit Web App - app.py: Port 8501]
     end
 
     %% Orchestration & Monitoring
-    subgraph Operations [Operations: Airflow & Monitoring]
-        A1[Apache Airflow: Scheduler] -- Triggers --> G3
-        node8 --> node3[generate_alerts]
-        node5 --> node6[setup_monitoring]
-        F1 -- Metrics --> M1[Prometheus]
-        M1 -- Dashboard --> M2[Grafana]
-        M1 -- Trigger --> S1[Slack Alert]
+    subgraph Operations [Operations: Airflow & Multi-Service Telemetry]
+        A1[Apache Airflow: Scheduler] -- Triggers Retraining --> G3
+        node8 --> node3[Logs/metrics.json]
+        
+        %% User Interaction Network Traffic
+        S2 -- HTTP POST Payload --> F1
+        
+        %% Scrape loops
+        F1 -- Telemetry Metrics --> M1[Prometheus: Port 9090]
+        M1 -- PromQL Scrape --> M2[Grafana Dashboard: Port 3000]
+        M1 -- Trigger Threshold --> S1[Slack / Ops Alert]
     end
 
     %% Connect CI/CD to Pipeline
     G3 --> node4
+
 ```
 
 
@@ -44,7 +50,7 @@ flowchart TD
 
 An end-to-end MLOps pipeline designed to train, track, and deploy a clinical sequence classification model (BioBERT) that detects Adverse Drug Reactions from patient reviews. 
 
-The pipeline integrates **DVC** for data reproducibility, **MLflow** for hyperparameter tuning and model tracking, **FastAPI** for low-latency serving, **Docker** for containerization, and a **Prometheus + Grafana** stack for production telemetry monitoring.
+The pipeline integrates **DVC** for data reproducibility, **MLflow** for hyperparameter tuning and model tracking, **FastAPI** for low-latency serving, **Docker** for containerization, and a **Prometheus + Grafana** stack for production telemetry monitoring with **Github Actions** automating CICD.
 
 ---
 
@@ -61,72 +67,71 @@ gcp:
   model_gcs_file: "test_dummy_model.zip" # 👈 Change this to protect production!
 ```
 
----
-
 ## 🛠️ Project Architecture & Layout
-
+---
 adr-nlp-mlops/
 ├── .github/
 │   ├── workflows/
-│   │   └── ci-cd.yaml            # CI/CD: Automated GitHub Actions pipeline
-│   └── pull_request_template.md  # Engineering team quality checklist
-├── config/                       # Central configuration schemas
-│   ├── data.yaml                 # Dataset boundary specifications
-│   ├── pipeline.yaml             # Main GCP, MLflow, and local path variables
-│   └── prometheus.yaml           # Telemetry: Metrics scraping definitions
-├── data/                         # Local storage volumes (Ignored by Git)
-│   ├── dummy/                    # 20-review safe validation seed files
-│   ├── processed/                # Cleansed and partitioned data arrays
-│   └── raw/                      # Raw unescaped target reviews
-├── docs/                         # Automated Sphinx codebase documentation
-├── gx/                           # Great Expectations Data Quality Layer
-│   ├── checkpoints/              # Schema testing validation manifests
-│   ├── expectations/             # JSON asset data property assertions
-│   └── great_expectations.yml    # Framework global configuration file
+│   │   └── ci-cd.yaml              # CI/CD: Automated GitHub Actions pipeline
+│   └── pull_request_template.md    # Engineering team quality checklist
+├── config/                         # Central configuration schemas
+│   ├── data.yaml                   # Dataset boundary specifications
+│   ├── pipeline.yaml               # Main GCP, MLflow, and local path variables
+│   └── prometheus.yaml             # Telemetry: Metrics scraping definitions
+├── data/                           # Local storage volumes (Ignored by Git)
+│   ├── dummy/                      # 20-review safe validation seed files
+│   ├── processed/                  # Cleansed and partitioned data arrays
+│   └── raw/                        # Raw unescaped target reviews
+├── docs/                           # Automated Sphinx codebase documentation
+├── gx/                             # Great Expectations Data Quality Layer
+│   ├── checkpoints/                # Schema testing validation manifests
+│   ├── expectations/               # JSON asset data property assertions
+│   └── great_expectations.yml      # Framework global configuration file
 ├── logs/
-│   └── metrics.json              # Evaluation stats monitored by DVC
-├── mlruns/                       # Local experiment database folder
+│   └── metrics.json                # Evaluation stats monitored by DVC
+├── mlruns/                         # Local experiment database folder
 ├── models/
-│   └── adr-nlp-final/            # Destination for unpacked model shards at API boot
-├── notebooks/                    # Experimental research Jupyter notebooks
-├── references/                   # Explanatory operational training manuals
-├── reports/                      # Visual output charts and static figures
-├── src/                          # System core python package modules
+│   └── adr-nlp-final/              # Destination for unpacked model shards at API boot
+├── notebooks/                      # Experimental research Jupyter notebooks
+├── references/                     # Explanatory operational training manuals
+├── reports/                        # Visual output charts and static figures
+├── src/                            # System core python package modules
 │   ├── __init__.py
-│   ├── api.py                    # FastAPI live prediction serving engine
-│   ├── build_features.py         # Feature engineering orchestration logic
-│   ├── cleaning_agent.py         # Text cleaning and normalisation algorithms
-│   ├── config_loader.py          # Dynamic absolute path configuration parser
-│   ├── data_pipeline.py          # Sequence execution controller
-│   ├── explainerAI.py            # SHAP model explainability (XAI) backend
-│   ├── gcs_utils.py              # Cloud storage download/upload streams
-│   ├── ge_expectations.py        # Great Expectations suite generator
-│   ├── ge_validator.py           # Verification runtime checkpoint runner
-│   ├── ingest.py                 # Remote dataset ingestion target gateway
-│   ├── orchestrator.py           # Pipeline master structural workflow manager
-│   ├── split.py                  # Partitions clean arrays reproducibly
-│   └── training_pipeline.py      # RAM-optimized training loop controller
-├── tests/                        # Automated code verification suites
+│   ├── api.py                      # FastAPI live prediction serving engine
+│   ├── build_features.py           # Feature engineering orchestration logic
+│   ├── cleaning_agent.py           # Text cleaning and normalisation algorithms
+│   ├── config_loader.py            # Dynamic absolute path configuration parser
+│   ├── data_pipeline.py            # Sequence execution controller
+│   ├── explainerAI.py              # SHAP model explainability (XAI) backend
+│   ├── gcs_utils.py                # Cloud storage download/upload streams
+│   ├── ge_expectations.py          # Great Expectations suite generator
+│   ├── ge_validator.py             # Verification runtime checkpoint runner
+│   ├── ingest.py                   # Remote dataset ingestion target gateway
+│   ├── orchestrator.py             # Pipeline master structural workflow manager
+│   ├── split.py                    # Partitions clean arrays reproducibly
+│   └── training_pipeline.py        # RAM-optimized training loop controller
+├── tests/                          # Automated code verification suites
 │   ├── __init__.py
-│   ├── test_api.py               # Unit assertions for mock FastAPI responses
-│   ├── test_cleaning_agent.py    # Checks string cleaning normalization 
-│   └── test_trainer.py           # Validates model structural initialization
-├── .cookiecutter.json            # Cookiecutter template deployment metadata
-├── .dvcignore                    # Prevents local data cache bleeding into cloud
-├── .gitignore                    # Strips local caches (venv, egg-info, pycache)
-├── cookiecutter.json             # Core template variable definitions
-├── Dockerfile                    # Isolated container assembly instructions
-├── docker-compose.yaml           # API + Monitoring multi-container coordinator
-├── dvc.lock                      # Frozen state snapshot of executed DVC pipelines
-├── dvc.yaml                      # Reproducible pipeline step configurations
-├── main.py                       # Project entry point execution script
-├── Makefile                      # Standardized terminal command shortcuts
-├── params.yaml                   # Central model parameter definition track
-├── requirements.txt              # Unified software framework dependencies list
-├── setup.py                      # Local editable package installation anchor
-├── test_environment.py           # Baseline hardware compatibility checking script
-└── tox.ini                       # Multi-environment automation checker
-
+│   ├── test_api.py                 # Unit assertions for mock FastAPI responses
+│   ├── test_cleaning_agent.py      # Checks string cleaning normalization
+│   └── test_trainer.py             # Validates model structural initialization
+├── .cookiecutter.json              # Cookiecutter template deployment metadata
+├── .dvcignore                      # Prevents local data cache bleeding into cloud
+├── .gitignore                      # Strips local caches (venv, egg-info, pycache)
+├── app.py                          # Streamlit frontend user interface webpage
+├── cookiecutter.json               # Core template variable definitions
+├── Dockerfile                      # Isolated backend container assembly instructions
+├── Dockerfile.frontend             # Isolated frontend container assembly instructions
+├── docker-compose.yaml             # API + Monitoring multi-container coordinator
+├── dvc.lock                        # Frozen state snapshot of executed DVC pipelines
+├── dvc.yaml                        # Reproducible pipeline step configurations
+├── main.py                         # Project entry point execution script
+├── Makefile                        # Standardized terminal command shortcuts
+├── params.yaml                     # Central model parameter definition track
+├── requirements.txt                # Unified software framework dependencies list
+├── setup.py                        # Local editable package installation anchor
+├── test_environment.py             # Baseline hardware compatibility checking script
+└── tox.ini                         # Multi-environment automation checke
 ---
 
 ## 🚀 Getting Started (Local Setup)
@@ -225,17 +230,19 @@ docker-compose up --build -d
 
 ---
 
+
 ## 🔄 Automated CI/CD (GitHub Actions)
 
-Our automated workflow file `.github/workflows/ci-cd.yaml` executes code quality checkpoints on every push or Pull Request:
+Our automated workflow file `.github/workflows/ci-cd.yaml` executes code quality and security checkpoints on every push or Pull Request:
 
 1. **Linting & Code Quality**: Evaluates PEP8 styling guidelines across all modules using `flake8`.
 2. **Unit Tests**: Runs code execution assertions using `pytest` to guarantee preprocessing functions aren't broken.
-3. **Automated Docker Image Build**: Upon successful merge to the `main` branch, a fresh Docker image is automatically compiled and pushed to Google Artifact Registry (GAR) for live cloud rolling deployments.
+3. **Secret Scanning & SAST**: Scans the codebase automatically using `TruffleHog` to ensure no raw GCP Service Account keys or MLflow credentials are leaked, alongside static analysis to prevent insecure Python routing.
+4. **Container Vulnerability Scan**: Prior to pushing, the compiled Docker layers are audited for CVEs (Common Vulnerabilities and Exposures). The build fails instantly if High or Critical system vulnerabilities are found.
+5. **Automated Deployment**: Upon a successful merge to the `main` branch and passing all security gates, fresh, verified Docker images are automatically pushed to Google Artifact Registry (GAR) for live cloud rolling deployments.
 
 ---
 
 ## 👥 Code Collaboration & Pull Requests (PRs)
-All feature additions or training parameter changes must be completed on an isolated branch. When pushing to GitHub, our `.github/pull_request_template.md` checklist will automatically pre-populate your description box. Ensure all unit evaluations pass before selecting **Merge**.
-
+All feature additions or training parameter changes must be completed on an isolated branch. When pushing to GitHub, our `.github/pull_request_template.md` checklist will automatically pre-populate your description box. Ensure all unit evaluations, linting checkpoints, and security container scans pass with a green checkmark before selecting **Merge**.
 
