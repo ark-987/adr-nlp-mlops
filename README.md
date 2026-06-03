@@ -68,7 +68,7 @@ gcp:
 ```
 
 ## 🛠️ Project Architecture & Layout
----
+```
 adr-nlp-mlops/
 ├── .github/
 │   ├── workflows/
@@ -132,7 +132,7 @@ adr-nlp-mlops/
 ├── setup.py                        # Local editable package installation anchor
 ├── test_environment.py             # Baseline hardware compatibility checking script
 └── tox.ini                         # Multi-environment automation checke
----
+```
 
 ## 🚀 Getting Started (Local Setup)
 
