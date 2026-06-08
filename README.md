@@ -38,7 +38,7 @@ flowchart TD
 ```
 
 
-# BioBERT Adverse Drug Reaction (ADR) Classifier 🚀
+# BioBERT Adverse Drug Reaction (ADR) Classifier 
 
 An end-to-end hybrid-cloud MLOps pipeline designed to train, track, and deploy a clinical sequence classification model (BioBERT) that detects Adverse Drug Reactions from patient reviews. 
 
@@ -46,7 +46,7 @@ The architecture bridges **Google Cloud Platform (GCS)** for early-stage raw dat
 
 ---
 
-## 🚨 CRITICAL PRODUCTION SAFETY WARNING 🚨
+## CRITICAL PRODUCTION SAFETY WARNING 
 
 The production workflow splits duties across cloud layers to protect assets and ensure organizational alignment:
 * **Training & Data Archive Phase**: Raw text data and final trained models are housed inside **Google Cloud Storage (GCS)**.
@@ -65,7 +65,7 @@ paths:
   model_dir: "models/adr-nlp-final"
 ```
 
-## 🛠️ Project Architecture & Layout
+##  Project Architecture & Layout
 
 ```text
 adr-nlp-mlops/
@@ -133,7 +133,7 @@ adr-nlp-mlops/
 
 ---
 
-## 🚀 Getting Started (Local Runtime Multi-Container Boot)
+##  Getting Started (Local Runtime Multi-Container Boot)
 
 ### 1. Prerequisites
 * Python 3.10+ installed.
@@ -171,7 +171,7 @@ Once the health check switches to healthy inside `docker compose ps`, access you
 
 ---
 
-## ⚙️ Pipeline Elements
+##  Pipeline Elements
 
 ### Phase 1: Data Ingestion & Quality Gates (GCP Core)
 * **`src/ingest.py`**: Interacts with remote Google Cloud Storage endpoints to pull raw `csv` training datasets down from your GCS data lake bucket into local workspace staging targets.
