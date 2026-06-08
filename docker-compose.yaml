@@ -1,6 +1,6 @@
-version: '3.8'
 
 services:
+  # 1. THE FASTAPI INFERENCE CORE
   api:
     build:
       context: .
@@ -9,11 +9,34 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - GOOGLE_CLOUD_PROJECT=project-edc577ab-2a6a-4016-89e
+      - AWS_DEFAULT_REGION=eu-west-1
     volumes:
-      - ~/.config/gcloud:/root/.config/gcloud:ro
+      # SECURE VOLUME INJECTION: Maps your laptop's hidden AWS credentials directly into the container
+      - ~/.aws:/root/.aws:ro
+    restart: always
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # 2. THE STREAMLIT USER FRONTEND
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: adr_nlp_frontend_streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy  # Streamlit waits until BioBERT is fully loaded in memory
     restart: always
 
+  # 3. THE TELEMETRY WATCHDOG
   prometheus:
     image: prom/prometheus:latest
     container_name: adr_nlp_telemetry_prometheus
@@ -25,17 +48,18 @@ services:
       - api
     restart: always
 
+  # 4. THE VISUAL METRICS DASHBOARD
   grafana:
     image: grafana/grafana:latest
     container_name: adr_nlp_visualization_grafana
     ports:
-      - "3000:3000"  # Exposes the Grafana UI to your local browser
+      - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
     restart: always
 
+# GLOBAL STORAGE DECLARATIONS (Strictly at the root level, flush left)
 volumes:
   grafana_data:
-

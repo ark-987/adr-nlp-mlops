@@ -1,13 +1,21 @@
 project:
   name: adr-nlp
 
-gcp:
-  project_id: "project-edc577ab-2a6a-4016-89e"
-  bucket_name: "adr-nlp" 
+#gcp:
+  #project_id: "project-edc577ab-2a6a-4016-89e"
+  #bucket_name: "adr-nlp" 
   # This tells FastAPI exactly which file to download
-  model_gcs_file: "final_model.zip" 
-  raw_gcs_path: "data/drugsComTrain_raw.csv"
-  
+  #model_gcs_file: "final_model.zip" 
+  #raw_gcs_path: "data/drugsComTrain_raw.csv"
+  #model_blob_path: "models/final_model.zip"
+aws:
+  region_name: "eu-west-1"               # Adjust to your preferred AWS region
+  bucket_name: "adr-nlp-model-bucket"    # You will create this bucket name in AWS
+  model_s3_path: "models/final_model.zip"
+
+paths:
+  model_dir: "models/adr-nlp-final"
+
 dataset:
   name: "engsaiedali/drugscomtrain-raw"
   text_column: "review"
@@ -42,9 +50,15 @@ paths:
   raw_data_file: "data/raw/drugsComTrain_raw.csv"
   cleaned_data_file: "data/processed/drugsComTrain_cleaned.csv"
   split_dir: "data/processed/split"
-  # Isolate your production model local folder
+  # Isolate production model local folder
   models: "models/production_live_adr_nlp"
 
+gcp:
+  bucket_name: "project-edc577ab-2a6a-4016-89e-bucket" # Your actual bucket name
+  model_blob_path: "models/final_model.zip"
+
+paths:
+  model_dir: "models/adr-nlp-final"
 
 
 
