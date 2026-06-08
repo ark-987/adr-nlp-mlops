@@ -39,6 +39,10 @@ venv/
 *.json
 .gcloud/
 keys/
+# Block any accidental local AWS files(AWSkeys not in this localfolder) 
+.aws/
+credentials
+*.pem
 
 
 # =========================
