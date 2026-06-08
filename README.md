@@ -6,8 +6,8 @@ flowchart TD
     %% Define External Infrastructure
     subgraph GitHub_Actions [CI/CD: GitHub Actions]
         direction TB
-        G1[Trigger: Push to Main] --> G2[Run Tests]
-        G2 --> G3[Run DVC Pipeline]
+        G1[Trigger: Push to Main] --> G2[Run Tests & Linting]
+        G2 --> G3[Run DVC Pipeline Checks]
     end
 
     %% DVC Data & Training Pipeline (GCP Cloud Core)
@@ -34,6 +34,7 @@ flowchart TD
 
     %% Connect CI/CD to Pipeline
     G3 --> node4
+
 ```
 
 
@@ -64,8 +65,6 @@ paths:
   model_dir: "models/adr-nlp-final"
 ```
 
----
-
 ## 🛠️ Project Architecture & Layout
 
 ```text
@@ -88,8 +87,8 @@ adr-nlp-mlops/
 │   ├── expectations/             # JSON asset data property assertions
 │   └── great_expectations.yml    # Framework global configuration file
 ├── logs/
-│   └── metrics.json              # Evaluation stats monitored by DVC
-├── mlruns/                       # Local experiment database folder
+│   └── metrics.json                # Evaluation stats monitored by DVC
+├── mlruns/                         # Local experiment database folder
 ├── models/
 │   └── adr-nlp-final/            # Destination for unpacked BioBERT model shards at API boot
 ├── notebooks/                    # Experimental research Jupyter notebooks
