@@ -1,12 +1,6 @@
 project:
   name: adr-nlp
 
-#gcp:
-  #project_id: "project-edc577ab-2a6a-4016-89e"
-  #bucket_name: "adr-nlp" 
-  #model_gcs_file: "final_model.zip" 
-  #raw_gcs_path: "data/drugsComTrain_raw.csv"
-  #model_blob_path: "models/final_model.zip"
 aws:
   region_name: "eu-west-1"               # Adjust to your preferred AWS region
   bucket_name: "adr-nlp-mlops-bucket-ayesha"    # Your bucket name in AWS
