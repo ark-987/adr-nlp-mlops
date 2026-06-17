@@ -54,7 +54,7 @@ def run_training_pipeline(config, train_df=None, val_df=None, test_df=None):
     bucket_name = config["gcp"]["bucket_name"]
     model_name = config["training_model_name"] 
 
-    # Point MLflow to your tracking server dynamically from config
+    # Point MLflow to tracking server dynamically from config
     mlflow.set_tracking_uri(config["mlflow"]["tracking_uri"])
     mlflow.set_experiment(config["mlflow"]["experiment_name"])
 
@@ -143,12 +143,12 @@ def run_training_pipeline(config, train_df=None, val_df=None, test_df=None):
             "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [2]),
         }
 
-    # Banned local checkpoint saving completely to save your 5.3GB drive space
+    # No checkpoint saving completely to protect 5.3GB drive space
     training_args = TrainingArguments(
         output_dir=output_dir,
-        num_train_epochs=config["training"]["epochs"],
-        per_device_train_batch_size=config["training"]["batch_size"],
-        per_device_eval_batch_size=config["training"]["batch_size"],
+        num_train_epochs=config["training_epochs"],      
+        per_device_train_batch_size=config["training_batch_size"], 
+        per_device_eval_batch_size=config["training_batch_size"],  
         learning_rate=2e-5, 
         eval_strategy="no",          
         save_strategy="no",          
@@ -206,10 +206,9 @@ def run_training_pipeline(config, train_df=None, val_df=None, test_df=None):
         #print("Uploading model artifacts to Google Cloud Storage...")
         #upload_directory_to_gcs(output_dir, bucket_name, config["gcp"]["model_gcs_file"])
 
+        # --- AUTOMATED PRODUCTION OVERWRITE PROTECTION when uploading artifacts to Google Cloud Storage ---
+        model_gcs_file = config["gcp"]["model_blob_path"]  
 
-          # --- AUTOMATED PRODUCTION OVERWRITE PROTECTION when uploading artifactsvto Google Cloud Storage---
-        model_gcs_file = config["gcp"]["model_gcs_file"]
-        
         try:
             import subprocess
             # Get the name of the current active git branch
