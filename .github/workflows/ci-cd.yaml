@@ -72,6 +72,38 @@ jobs:
           docker build -t $ECR_REGISTRY/adr-nlp-frontend:latest -f Dockerfile.frontend .
           docker push $ECR_REGISTRY/adr-nlp-frontend:latest
 
+  deploy-to-ec2:
+    needs: build-and-ship-container
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Copy Docker Compose to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml,config/prometheus.yaml" # Copies layout files
+          target: "~/"
+
+      - name: SSH into EC2 and Refresh Containers
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Log Docker into AWS ECR using the Instance Role permissions
+            aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+            
+            # Pull new images and restart the stack
+            export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+            docker compose down
+            docker compose pull
+            docker compose up -d
 
 
 

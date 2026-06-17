@@ -1,3 +1,4 @@
+import os  
 import os
 import pandas as pd
 from src.ingest import download_kaggle_dataset
@@ -33,7 +34,7 @@ def run_data_pipeline(config=None):
 
     # 3. Validate Data with Great Expectations
     print("\n--- Step 2: Data Quality Validation ---")
-    # UPDATED: We now pass the cleaned in-memory dataframe 'df' directly into the suite
+    # UPDATED: pass the cleaned in-memory dataframe 'df' directly into the suite
     create_suite(df)
 
     # 4. Cleaning Agent Processing

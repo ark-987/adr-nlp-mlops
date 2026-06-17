@@ -1,18 +1,18 @@
 
-services:
   # 1. THE FASTAPI INFERENCE CORE
+  services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${ECR_REGISTRY}/adr-nlp-api:latest
+    deploy:
+      resources:
+        limits:
+          memory: 4G
     container_name: adr_nlp_api_serving
     ports:
       - "8000:8000"
     environment:
       - AWS_DEFAULT_REGION=eu-west-1
-    volumes:
-      # SECURE VOLUME INJECTION: Maps your laptop's hidden AWS credentials directly into the container
-      - ~/.aws:/root/.aws:ro
+      - MODEL_S3_BUCKET= adr-nlp-mlops-bucket-ayesha  # Add your S3 information here
     restart: always
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
@@ -21,11 +21,9 @@ services:
       retries: 5
       start_period: 15s
 
-  # 2. THE STREAMLIT USER FRONTEND
+  # 2. THE STREAMLIT FRONTEND
   streamlit:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
+    image: ${ECR_REGISTRY}/adr-nlp-frontend:latest
     container_name: adr_nlp_frontend_streamlit
     ports:
       - "8501:8501"
@@ -33,9 +31,8 @@ services:
       - API_URL=http://api:8000
     depends_on:
       api:
-        condition: service_healthy  # Streamlit waits until BioBERT is fully loaded in memory
+        condition: service_healthy
     restart: always
-
   # 3. THE TELEMETRY WATCHDOG
   prometheus:
     image: prom/prometheus:latest
