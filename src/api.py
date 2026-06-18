@@ -74,7 +74,6 @@ async def liveness_probe():
 @app.post("/predict")
 async def predict_adr(data: ReviewInput):
     """Processes incoming data streams, executes inference matrices, returns classifications."""
-    global model, tokenizer
     
     # Baseline protection for pure whitespace extraction strings
     if data.review.strip() == "":
