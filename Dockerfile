@@ -14,7 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --no-compile --max-workers=1 \
+    --extra-index-url https://pypi.org \
+    -r requirements.txt
+
 
 COPY config/ ./config/
 COPY src/ ./src/
