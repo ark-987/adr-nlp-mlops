@@ -16,3 +16,4 @@ uvicorn[standard]>=0.28.0
 prometheus-fastapi-instrumentator>=7.0.0
 streamlit>=1.30.0
 requests>=2.31.0
+
