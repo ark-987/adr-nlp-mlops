@@ -8,6 +8,7 @@ boto3>=1.34.0
 torch>=2.0.0
 transformers>=4.30.0
 sentencepiece
+datasets>=2.12.0
 
 # --- SERVING LAYER, TELEMETRY & UI ---
 fastapi>=0.110.0
