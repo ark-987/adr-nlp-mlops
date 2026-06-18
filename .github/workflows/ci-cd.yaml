@@ -21,11 +21,11 @@ jobs:
 
       - name: Install Dependencies
         run: |
-        python -m pip install --upgrade pip
-        pip install flake8 pytest
-        pip install -r requirements.txt# Ensure BOTH production and development requirements are installed
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f requirements_dev.txt ]; then pip install -r requirements_dev.txt; fi
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          pip install -r requirements.txt # Ensure BOTH production and development requirements are installed
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements_dev.txt ]; then pip install -r requirements_dev.txt; fi
 
           
 
