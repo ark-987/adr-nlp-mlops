@@ -14,7 +14,7 @@ def test_custom_trainer_loss():
     # 2. Create heavily imbalanced weights (Class 1 is 10x more important)
     weights = torch.tensor([1.0, 10.0], dtype=torch.float)
     
-    args = TrainingArguments(output_dir="./test_output", no_cuda=True)
+    args = TrainingArguments(output_dir="./test_output", use_cpu=True)
     
     # 3. Initialize CustomTrainer
     trainer = CustomTrainer(

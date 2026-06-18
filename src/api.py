@@ -48,6 +48,14 @@ async def lifespan(app: FastAPI):
 
 # Instantiate the primary FastAPI engine with the runtime initialization lifecycles
 app = FastAPI(lifespan=lifespan)
+from fastapi import FastAPI
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+
+app = FastAPI()
+
+# PREVENTS THE 500 ERROR converts it into a proper HTTP 429 response.
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # BROWSER SAFETY: Enable Cross-Origin Handshaking with your Streamlit UI components
 app.add_middleware(
