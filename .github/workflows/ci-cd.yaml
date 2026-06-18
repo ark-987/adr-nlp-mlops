@@ -34,10 +34,16 @@ jobs:
           flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Run Test Suite Assertions (PyTest)
+      
+      - name: Run Tests with AWS Credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
         run: |
           export PYTHONPATH="."
-          pytest tests/
+          pytest
+
 
   build-and-ship-container:
     needs: code-quality-and-test
