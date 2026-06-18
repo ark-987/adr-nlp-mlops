@@ -46,14 +46,12 @@ async def lifespan(app: FastAPI):
     print("[BOOT] Server application memory securely initialized! Accepting network traffic.")
     yield
 
-# Instantiate the primary FastAPI engine with the runtime initialization lifecycles
-app = FastAPI(lifespan=lifespan)
+
 from fastapi import FastAPI
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
-
-app = FastAPI()
-
+# Instantiate the primary FastAPI engine with the runtime initialization lifecycles
+app = FastAPI(lifespan=lifespan)
 # PREVENTS THE 500 ERROR converts it into a proper HTTP 429 response.
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
