@@ -116,17 +116,17 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 1. FIXED: Forcefully wipe out the old corrupted HTML files completely
+            # 1. Forcefully wipe out any old corrupted HTML file mockups completely
             sudo rm -f /usr/local/bin/docker-compose
             sudo rm -f /usr/bin/docker-compose
 
-            # 2. FIXED: Download the actual raw binary file from Docker's official distribution repository
+            # 2. Download the valid standalone binary from the correct GitHub releases endpoint
             echo "Downloading clean standalone compose engine binary..."
             sudo curl -SL "https://github.com" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
-            # 3. Secure, complete Stockholm registry target routing
+            # 3. Secure, complete Stockholm registry target routing parameters
             TARGET_REGISTRY="://amazonaws.com"
             
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
@@ -137,6 +137,13 @@ jobs:
             docker-compose pull
             docker-compose up -d
 
-
-
+      # Clean up the firewall rule after deployment completes (runs even on failures)
+      - name: Revoke Runner IP Access
+        if: always() && steps.ip.outputs.ipv4 != ''
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32
 
