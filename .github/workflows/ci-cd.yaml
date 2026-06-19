@@ -88,20 +88,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # 1. Fetch the GitHub runner's public IP address
+      # 1. Fetch IP cleanly with an explicit text-fallback fail flag
       - name: Get Runner IP
         id: ip
-        run: echo "ipv4=$(curl -s https://ipify.org)" >> $GITHUB_OUTPUT
+        run: |
+          RUNNER_IP=$(curl -s -f https://ipify.org || curl -s -f https://ifconfig.me)
+          echo "ipv4=$RUNNER_IP" >> $GITHUB_OUTPUT
 
-      # 2. Authorize Port 22 for this IP in your Security Group
+      # 2. Authorize Port 22 Securely using the GitHub Secret variable
       - name: Whitelist Runner IP
         run: |
           aws ec2 authorize-security-group-inbound \
-            --group-id sg-0123456789abcdef0 \
+            --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
             --protocol tcp \
             --port 22 \
             --cidr ${{ steps.ip.outputs.ipv4 }}/32
-        # NOTE: Replace sg-0123456789abcdef0 with your actual Security Group ID!
 
       - name: Copy Docker Compose to EC2
         uses: appleboy/scp-action@master
@@ -120,22 +121,23 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             REGISTRY_URL="://amazonaws.com"
+            
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $REGISTRY_URL
+            
             export ECR_REGISTRY=$REGISTRY_URL
             docker compose down
             docker compose pull
             docker compose up -d
 
-      # 3. Clean up the firewall rule after deployment completes (Always runs)
+      # 3. Clean up the firewall rule after deployment completes (runs even on failures)
       - name: Revoke Runner IP Access
-        if: always()
+        if: always() && steps.ip.outputs.ipv4 != ''
         run: |
           aws ec2 revoke-security-group-inbound \
-            --group-id sg-0123456789abcdef0 \
+            --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
             --protocol tcp \
             --port 22 \
             --cidr ${{ steps.ip.outputs.ipv4 }}/32
-
 
 
 
