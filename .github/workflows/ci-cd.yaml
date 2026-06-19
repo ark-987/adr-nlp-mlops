@@ -120,19 +120,30 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            REGISTRY_URL="://amazonaws.com"
-            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $REGISTRY_URL
-            export ECR_REGISTRY=$REGISTRY_URL
-            docker compose down
-            docker compose pull
-            docker compose up -d
+            # 1. Fallback: Automatically install the AWS CLI if it is missing on the server
+            if ! command -v aws &> /dev/null; then
+              echo "AWS CLI not found. Installing..."
+              sudo apt-get update && sudo apt-get install -y awscli
+            fi
 
-      # 3. Clean up the firewall rule after deployment completes (runs even on failures)
-      - name: Revoke Runner IP Access
-        if: always() && steps.ip.outputs.ipv4 != '' && !contains(steps.ip.outputs.ipv4, 'html')
-        run: |
-          aws ec2 revoke-security-group-ingress \
-            --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
-            --protocol tcp \
-            --port 22 \
-            --cidr ${{ steps.ip.outputs.ipv4 }}/32
+            # 2. Set up Registry URL
+            REGISTRY_URL="://amazonaws.com"
+            
+            # 3. Authenticate Docker with ECR (Added non-interactive flag for automation)
+            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $REGISTRY_URL
+            
+            export ECR_REGISTRY=$REGISTRY_URL
+
+            # 4. Fallback: Handle old 'docker-compose' vs modern 'docker compose' syntax
+            if docker compose version &> /dev/null; then
+              COMPOSE_CMD="docker compose"
+            else
+              COMPOSE_CMD="docker-compose"
+            fi
+
+            echo "Using compose command: $COMPOSE_CMD"
+
+            # 5. Cycle and pull the production containers
+            $COMPOSE_CMD down
+            $COMPOSE_CMD pull
+            $COMPOSE_CMD up -d
