@@ -88,11 +88,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
+      # 1. FIXED: Enforce a clean, standard IPv4 lookup string explicitly
       - name: Get Runner IP
         id: ip
-        uses: haythem/public-ip@v1.2
+        run: |
+          RUNNER_IP=$(curl -4 -s -f https://ipify.org || curl -4 -s -f https://ifconfig.me)
+          echo "ipv4=$RUNNER_IP" >> $GITHUB_OUTPUT
 
-      # 2. FIXED: Changed 'authorize-security-group-inbound' to 'authorize-security-group-ingress'
+      # 2. Authorize Port 22 Securely
       - name: Whitelist Runner IP
         run: |
           aws ec2 authorize-security-group-ingress \
@@ -118,15 +121,13 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             REGISTRY_URL="://amazonaws.com"
-            
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $REGISTRY_URL
-            
             export ECR_REGISTRY=$REGISTRY_URL
             docker compose down
             docker compose pull
             docker compose up -d
 
-      # 3. FIXED: Changed 'revoke-security-group-inbound' to 'revoke-security-group-ingress'
+      # 3. Clean up the firewall rule after deployment completes (runs even on failures)
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
