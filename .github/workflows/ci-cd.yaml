@@ -88,14 +88,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # 1. FIXED: Corrected URL to api.ipify.org to prevent HTML redirect errors
       - name: Get Runner IP
         id: ip
-        run: |
-          RUNNER_IP=$(curl -4 -s -f https://api.ipify.org || curl -4 -s -f https://ifconfig.me || curl -4 -s -f https://icalendars.net)
-          echo "ipv4=$RUNNER_IP" >> $GITHUB_OUTPUT
+        uses: haythem/public-ip@v1.2
 
-      # 2. Authorize Port 22 Securely
       - name: Whitelist Runner IP
         run: |
           aws ec2 authorize-security-group-ingress \
@@ -120,34 +116,36 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 1. NEW: Force the EC2 server to purge old Docker bloat and system caches instantly
-            echo "Clearing out remote EC2 system caches and unused images..."
-            docker system prune -a --volumes -f
-            sudo apt-get autoremove -y && sudo apt-get clean
-            sudo journalctl --vacuum-time=2d
+            # 1. Clear out the broken HTML binary from the previous run
+            sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
 
-            # 2. Ensure a standalone Docker Compose binary is available locally
+            # 2. Download the valid standalone binary from the correct GitHub releases endpoint
             if ! command -v docker-compose &> /dev/null; then
-              echo "Standalone compose binary missing. Downloading direct fallback..."
+              echo "Downloading clean standalone compose engine..."
               sudo curl -SL "https://github.com" -o /usr/local/bin/docker-compose
               sudo chmod +x /usr/local/bin/docker-compose
               sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
             fi
 
-            # 3. Hardcode absolute target parameters securely to prevent secret overrides
-            TARGET_REGISTRY="://amazonaws.com"
+            # 3. Secure, complete Stockholm registry target routing
+            TARGET_REGISTRY="509399632272.dkr.ecr.eu-north-1.amazonaws.com"
             
-            # 4. Authenticate the local engine against the target registry URL string
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
-            
-            # 5. Bind the registry URL definition cleanly to the compose execution scope
             export ECR_REGISTRY=$TARGET_REGISTRY
 
-            # 6. Cycle the production service container tree using the standalone command layout
             echo "Executing application container refresh via standalone compose engine..."
             docker-compose down
             docker-compose pull
             docker-compose up -d
+
+      - name: Revoke Runner IP Access
+        if: always() && steps.ip.outputs.ipv4 != ''
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32
 
 
 
