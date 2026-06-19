@@ -35,7 +35,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: eu-north-1  # CHANGED to match your repo
+          AWS_DEFAULT_REGION: eu-north-1
         run: |
           export PYTHONPATH="."
           pytest
@@ -53,7 +53,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1  # FIXED: Now points to Stockholm
+          aws-region: eu-north-1
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -66,7 +66,6 @@ jobs:
           docker build -t $ECR_REGISTRY/adr-nlp-api:latest .
           docker push $ECR_REGISTRY/adr-nlp-api:latest
 
-      # NOTE: Ensure 'adr-nlp-frontend' repository ALSO exists in eu-north-1!
       - name: Build, Tag, and Push Frontend Image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -74,7 +73,7 @@ jobs:
           docker build -t $ECR_REGISTRY/adr-nlp-frontend:latest -f Dockerfile.frontend .
           docker push $ECR_REGISTRY/adr-nlp-frontend:latest
 
-    deploy-to-ec2:
+  deploy-to-ec2:
     needs: build-and-ship-container
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -99,7 +98,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             # 1. Generate the exact, absolute Stockholm registry URL
-            REGISTRY_URL="://amazonaws.com"
+            REGISTRY_URL="509399632272.dkr.ecr.eu-north-1.amazonaws.com"
             
             # 2. Authenticate the EC2 Docker client using this URL
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $REGISTRY_URL
