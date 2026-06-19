@@ -116,19 +116,18 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 1. Clear out the broken HTML binary from the previous run
-            sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
+            # 1. FIXED: Forcefully wipe out the old corrupted HTML files completely
+            sudo rm -f /usr/local/bin/docker-compose
+            sudo rm -f /usr/bin/docker-compose
 
-            # 2. Download the valid standalone binary from the correct GitHub releases endpoint
-            if ! command -v docker-compose &> /dev/null; then
-              echo "Downloading clean standalone compose engine..."
-              sudo curl -SL "https://github.com" -o /usr/local/bin/docker-compose
-              sudo chmod +x /usr/local/bin/docker-compose
-              sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-            fi
+            # 2. FIXED: Download the actual raw binary file from Docker's official distribution repository
+            echo "Downloading clean standalone compose engine binary..."
+            sudo curl -SL "https://github.com" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+            sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
             # 3. Secure, complete Stockholm registry target routing
-            TARGET_REGISTRY="509399632272.dkr.ecr.eu-north-1.amazonaws.com"
+            TARGET_REGISTRY="://amazonaws.com"
             
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
             export ECR_REGISTRY=$TARGET_REGISTRY
@@ -138,14 +137,6 @@ jobs:
             docker-compose pull
             docker-compose up -d
 
-      - name: Revoke Runner IP Access
-        if: always() && steps.ip.outputs.ipv4 != ''
-        run: |
-          aws ec2 revoke-security-group-ingress \
-            --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
-            --protocol tcp \
-            --port 22 \
-            --cidr ${{ steps.ip.outputs.ipv4 }}/32
 
 
 
