@@ -91,7 +91,7 @@ jobs:
       # 1. Fetch IP cleanly with an explicit text-fallback fail flag
       - name: Get Runner IP
         id: ip
-        uses: haythem/public-ip@v1.3.0
+        uses: haythem/public-ip@v1.2
 
       # 2. Authorize Port 22 Securely using the GitHub Secret variable
       - name: Whitelist Runner IP
