@@ -88,15 +88,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # 1. Fetch IP cleanly with an explicit text-fallback fail flag
       - name: Get Runner IP
         id: ip
         uses: haythem/public-ip@v1.2
 
-      # 2. Authorize Port 22 Securely using the GitHub Secret variable
+      # 2. FIXED: Changed 'authorize-security-group-inbound' to 'authorize-security-group-ingress'
       - name: Whitelist Runner IP
         run: |
-          aws ec2 authorize-security-group-inbound \
+          aws ec2 authorize-security-group-ingress \
             --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
             --protocol tcp \
             --port 22 \
@@ -127,11 +126,11 @@ jobs:
             docker compose pull
             docker compose up -d
 
-      # 3. Clean up the firewall rule after deployment completes (runs even on failures)
+      # 3. FIXED: Changed 'revoke-security-group-inbound' to 'revoke-security-group-ingress'
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
-          aws ec2 revoke-security-group-inbound \
+          aws ec2 revoke-security-group-ingress \
             --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
             --protocol tcp \
             --port 22 \
