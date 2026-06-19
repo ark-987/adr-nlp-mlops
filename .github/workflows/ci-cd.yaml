@@ -23,27 +23,22 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install flake8 pytest
-          pip install -r requirements.txt # Ensure BOTH production and development requirements are installed
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements_dev.txt ]; then pip install -r requirements_dev.txt; fi
-
-          
 
       - name: Execute Linting Syntax Check (Flake8)
         run: |
           flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      
       - name: Run Tests with AWS Credentials
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+          AWS_DEFAULT_REGION: eu-north-1  # CHANGED to match your repo
         run: |
           export PYTHONPATH="."
           pytest
-
 
   build-and-ship-container:
     needs: code-quality-and-test
@@ -53,20 +48,17 @@ jobs:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
-      # =========================================================================
-      # SECURITY GATEWAY: Authenticate with Amazon Web Services via Secrets
-      # =========================================================================
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1 
+          aws-region: eu-north-1  # FIXED: Now points to Stockholm
+
       - name: Log in to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Compile and push  images toAmazon Registry
       - name: Build, Tag, and Push Backend Image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -74,6 +66,7 @@ jobs:
           docker build -t $ECR_REGISTRY/adr-nlp-api:latest .
           docker push $ECR_REGISTRY/adr-nlp-api:latest
 
+      # NOTE: Ensure 'adr-nlp-frontend' repository ALSO exists in eu-north-1!
       - name: Build, Tag, and Push Frontend Image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -81,7 +74,7 @@ jobs:
           docker build -t $ECR_REGISTRY/adr-nlp-frontend:latest -f Dockerfile.frontend .
           docker push $ECR_REGISTRY/adr-nlp-frontend:latest
 
-  deploy-to-ec2:
+    deploy-to-ec2:
     needs: build-and-ship-container
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -105,11 +98,18 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # SUCCESS: server's native IAM Instance Role permissions
-            aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+            # 1. Generate the exact, absolute Stockholm registry URL
+            REGISTRY_URL="://amazonaws.com"
             
-            export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+            # 2. Authenticate the EC2 Docker client using this URL
+            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $REGISTRY_URL
+            
+            # 3. Export it so docker-compose knows exactly where to pull from
+            export ECR_REGISTRY=$REGISTRY_URL
+            
             docker compose down
             docker compose pull
-            docker compose up -d  
+            docker compose up -d
+
+
 
