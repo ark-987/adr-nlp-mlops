@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 # Step 4: Install remaining packages (invalidated only if requirements.txt changes)
-RUN pip install --no-cache-dir --no-compile --max-workers=1 -r requirements.txt
+RUN pip install --no-cache-dir --no-compile -r requirements.txt
 
 
 COPY config/ ./config/
