@@ -88,11 +88,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # 1. FIXED: Enforce a clean, standard IPv4 lookup string explicitly
+      # 1. FIXED: Corrected URL to api.ipify.org to prevent HTML redirect errors
       - name: Get Runner IP
         id: ip
         run: |
-          RUNNER_IP=$(curl -4 -s -f https://ipify.org || curl -4 -s -f https://ifconfig.me)
+          RUNNER_IP=$(curl -4 -s -f https://api.ipify.org || curl -4 -s -f https://ifconfig.me || curl -4 -s -f https://icalendars.net)
           echo "ipv4=$RUNNER_IP" >> $GITHUB_OUTPUT
 
       # 2. Authorize Port 22 Securely
@@ -129,7 +129,7 @@ jobs:
 
       # 3. Clean up the firewall rule after deployment completes (runs even on failures)
       - name: Revoke Runner IP Access
-        if: always() && steps.ip.outputs.ipv4 != ''
+        if: always() && steps.ip.outputs.ipv4 != '' && !contains(steps.ip.outputs.ipv4, 'html')
         run: |
           aws ec2 revoke-security-group-ingress \
             --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
