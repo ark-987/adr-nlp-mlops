@@ -120,35 +120,34 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 1. Self-Healing: Automatically install AWS CLI if missing
-            if ! command -v aws &> /dev/null; then
-              echo "AWS CLI not found. Installing..."
-              sudo apt-get update && sudo apt-get install -y awscli
+            # 1. NEW: Force the EC2 server to purge old Docker bloat and system caches instantly
+            echo "Clearing out remote EC2 system caches and unused images..."
+            docker system prune -a --volumes -f
+            sudo apt-get autoremove -y && sudo apt-get clean
+            sudo journalctl --vacuum-time=2d
+
+            # 2. Ensure a standalone Docker Compose binary is available locally
+            if ! command -v docker-compose &> /dev/null; then
+              echo "Standalone compose binary missing. Downloading direct fallback..."
+              sudo curl -SL "https://github.com" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+              sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
             fi
 
-            # 2. Self-Healing: Automatically install Docker Compose plugin if missing
-            if ! docker compose version &> /dev/null; then
-              echo "Docker Compose plugin missing. Installing platform dependencies..."
-              sudo apt-get update && sudo apt-get install -y docker-compose-v2 || {
-                echo "Fallback: Downloading binary directly from GitHub..."
-                sudo mkdir -p /usr/local/lib/docker/cli-plugins
-                sudo curl -SL "https://github.com" -o /usr/local/lib/docker/cli-plugins/docker-compose
-                sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-              }
-            fi
-
-            # 3. Explicitly declare absolute Stockholm Registry parameters
-            REGISTRY_URL="://amazonaws.com"
+            # 3. Hardcode absolute target parameters securely to prevent secret overrides
+            TARGET_REGISTRY="://amazonaws.com"
             
-            # 4. Authenticate Docker with Amazon ECR
-            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $REGISTRY_URL
+            # 4. Authenticate the local engine against the target registry URL string
+            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
             
-            # 5. Export variables for the container compose scope
-            export ECR_REGISTRY=$REGISTRY_URL
+            # 5. Bind the registry URL definition cleanly to the compose execution scope
+            export ECR_REGISTRY=$TARGET_REGISTRY
 
-            # 6. Cycle and refresh the application stack safely
-            echo "Executing fresh container generation..."
-            docker compose down
-            docker compose pull
-            docker compose up -d
+            # 6. Cycle the production service container tree using the standalone command layout
+            echo "Executing application container refresh via standalone compose engine..."
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d
+
+
 
