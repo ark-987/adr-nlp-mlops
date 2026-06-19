@@ -91,9 +91,7 @@ jobs:
       # 1. Fetch IP cleanly with an explicit text-fallback fail flag
       - name: Get Runner IP
         id: ip
-        run: |
-          RUNNER_IP=$(curl -s -f https://ipify.org || curl -s -f https://ifconfig.me)
-          echo "ipv4=$RUNNER_IP" >> $GITHUB_OUTPUT
+        uses: haythem/public-ip@v1.3.0
 
       # 2. Authorize Port 22 Securely using the GitHub Secret variable
       - name: Whitelist Runner IP
@@ -138,6 +136,3 @@ jobs:
             --protocol tcp \
             --port 22 \
             --cidr ${{ steps.ip.outputs.ipv4 }}/32
-
-
-
