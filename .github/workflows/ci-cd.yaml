@@ -88,10 +88,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
+      # 1. FIXED: Uses a highly reliable fallback IP gatherer
       - name: Get Runner IP
         id: ip
-        uses: haythem/public-ip@v1.2
+        run: |
+          RUNNER_IP=$(curl -4 -s -f https://ipify.org || curl -4 -s -f https://ifconfig.me)
+          echo "ipv4=$RUNNER_IP" >> $GITHUB_OUTPUT
 
+      # 2. Authorize Port 22 Securely
       - name: Whitelist Runner IP
         run: |
           aws ec2 authorize-security-group-ingress \
@@ -116,28 +120,23 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 1. Forcefully wipe out any old corrupted HTML file mockups completely
-            sudo rm -f /usr/local/bin/docker-compose
-            sudo rm -f /usr/bin/docker-compose
-
-            # 2. Download the valid standalone binary from the correct GitHub releases endpoint
+            sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
+            
             echo "Downloading clean standalone compose engine binary..."
             sudo curl -SL "https://github.com" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-
-            # 3. Secure, complete Stockholm registry target routing parameters
-            TARGET_REGISTRY="://amazonaws.com"
             
+            TARGET_REGISTRY="://amazonaws.com"
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
             export ECR_REGISTRY=$TARGET_REGISTRY
-
+            
             echo "Executing application container refresh via standalone compose engine..."
             docker-compose down
             docker-compose pull
             docker-compose up -d
 
-      # Clean up the firewall rule after deployment completes (runs even on failures)
+      # 3. Clean up the firewall rule after deployment completes (runs even on failures)
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
