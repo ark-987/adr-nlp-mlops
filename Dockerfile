@@ -4,21 +4,24 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH="."
 
+# Step 1: Copy only requirements to leverage Docker cache
 WORKDIR /app
 
-# Install system dependencies required for compiling certain Python binaries 
 RUN apt-get update && apt-get install -y --no-install-recommends \     
     build-essential \     
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 
-# 1. Upgrade pip
-RUN pip install --no-cache-dir --upgrade pip && \
-# 2. Force install the lightweight CPU torch variant first from the CORRECT subdomain
-    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
-# 3. Install the rest of the packages from PyPI sequentially to save memory
-    pip install --no-cache-dir --no-compile --max-workers=1 -r requirements.txt
+# Step 2: Upgrade pip (cached unless base image changes)
+RUN pip install --no-cache-dir --upgrade pip
+
+# Step 3: Install heavy CPU torch (cached unless this specific line changes)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# Step 4: Install remaining packages (invalidated only if requirements.txt changes)
+RUN pip install --no-cache-dir --no-compile --max-workers=1 -r requirements.txt
+
 
 COPY config/ ./config/
 COPY src/ ./src/
