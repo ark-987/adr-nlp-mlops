@@ -1,25 +1,25 @@
 
   # 1. THE FASTAPI INFERENCE CORE
   services:
-  api:
-    image: ${ECR_REGISTRY}/adr-nlp-api:latest
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-    container_name: adr_nlp_api_serving
-    ports:
+    api:
+      image: ${ECR_REGISTRY}/adr-nlp-api:latest
+      deploy:
+        resources:
+          limits:
+            memory: 4G
+      container_name: adr_nlp_api_serving
+      ports:
       - "8000:8000"
-    environment:
-      - AWS_DEFAULT_REGION=eu-west-1
-      - MODEL_S3_BUCKET= adr-nlp-mlops-bucket-ayesha  # Add your S3 information here
-    restart: always
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+      environment:
+      - AWS_DEFAULT_REGION=eu-north-1
+      - MODEL_S3_BUCKET=adr-nlp-mlops-bucket-ayesha 
+      restart: always
+      healthcheck:
+        test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 15s
 
   # 2. THE STREAMLIT FRONTEND
   streamlit:

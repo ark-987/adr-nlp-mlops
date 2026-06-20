@@ -127,14 +127,20 @@ jobs:
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
             
-            TARGET_REGISTRY="://amazonaws.com"
+            # Constructing the exact AWS private registry string dynamically
+            TARGET_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com"
+            
+            echo "Authenticating Docker against remote ECR Registry..."
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
+            
+            # Exporting it so docker-compose.yml can resolve the image path lines
             export ECR_REGISTRY=$TARGET_REGISTRY
             
             echo "Executing application container refresh via standalone compose engine..."
             docker-compose down
             docker-compose pull
             docker-compose up -d
+
 
       # Clean up the firewall rule after deployment completes (runs even on failures)
       - name: Revoke Runner IP Access

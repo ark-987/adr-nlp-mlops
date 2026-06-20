@@ -7,8 +7,8 @@ from transformers import AutoConfig, AutoModelForSequenceClassification, Trainin
 from datasets import Dataset
 
 def test_custom_trainer_loss():
-    # 1. Load configuration from your local config.json and build a dummy model
-    config = AutoConfig.from_pretrained("config.json", num_labels=2)
+    # If config.json is in the root directory, point to the directory path "./"
+    config = AutoConfig.from_pretrained("./", num_labels=2)
     model = AutoModelForSequenceClassification.from_config(config)
     
     # 2. Create heavily imbalanced weights (Class 1 is 10x more important)
