@@ -8,7 +8,8 @@ from datasets import Dataset
 
 def test_custom_trainer_loss():
     # If config.json is in the root directory, point to the directory path "./"
-    config = AutoConfig.from_pretrained("./", num_labels=2)
+    config = AutoConfig.from_pretrained("./tests/mock_model/", num_labels=2)
+
     model = AutoModelForSequenceClassification.from_config(config)
     
     # 2. Create heavily imbalanced weights (Class 1 is 10x more important)
