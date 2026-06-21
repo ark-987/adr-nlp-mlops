@@ -90,7 +90,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # OPTION 1 PLACEMENT: Replaces the manual curl bash commands safely
       - name: Get Runner IP
         id: ip
         uses: haythem/public-ip@v1.2
@@ -114,39 +113,36 @@ jobs:
 
       - name: SSH into EC2 and Refresh Containers
         uses: appleboy/ssh-action@master
+        # FIXED: env block now cleanly aligns at the step level, completely separated from with
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          # CRITICAL FIX: Explicitly map GitHub Secrets to SSH Environment variables
           envs: AWS_ACCOUNT_ID
-        env:
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        script: |
-          # Clean up any broken binary links from past runs
-          sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
-          
-          echo "Downloading clean standalone compose engine binary..."
-          # FIX: Pulls the true executable binary directly from Docker's official releases page
-          sudo curl -SL "https://github.com" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-          sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-          
-          # This variable will now correctly populate from the envs block above
-          TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com"
-          
-          echo "Authenticating Docker against remote ECR Registry..."
-          aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
-          
-          # Exporting it so docker-compose.yml can resolve the image path lines
-          export ECR_REGISTRY=$TARGET_REGISTRY
-          
-          echo "Executing application container refresh via standalone compose engine..."
-          docker-compose down
-          docker-compose pull
-          docker-compose up -d
+          script: |
+            # Clean up any broken binary links from past runs
+            sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
+            
+            echo "Downloading clean standalone compose engine binary..."
+            sudo curl -SL "https://github.com" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+            sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+            
+            TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com"
+            
+            echo "Authenticating Docker against remote ECR Registry..."
+            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
+            
+            export ECR_REGISTRY=$TARGET_REGISTRY
+            
+            echo "Executing application container refresh via standalone compose engine..."
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d
 
-      # Clean up the firewall rule after deployment completes (runs even on failures)
+      # FIXED: Restored the complete structural metadata for the cleanup block
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
@@ -155,3 +151,4 @@ jobs:
             --protocol tcp \
             --port 22 \
             --cidr ${{ steps.ip.outputs.ipv4 }}/32
+
