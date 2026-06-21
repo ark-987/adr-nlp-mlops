@@ -90,11 +90,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
+      # OPTION 1 PLACEMENT: Replaces the manual curl bash commands safely
       - name: Get Runner IP
         id: ip
-        run: |
-          RUNNER_IP=$(curl -4 -s -f https://ipify.org || curl -4 -s -f https://ifconfig.me)
-          echo "ipv4=$RUNNER_IP" >> $GITHUB_OUTPUT
+        uses: haythem/public-ip@v1.2
 
       - name: Whitelist Runner IP
         run: |
@@ -140,7 +139,6 @@ jobs:
             docker-compose down
             docker-compose pull
             docker-compose up -d
-
 
       # Clean up the firewall rule after deployment completes (runs even on failures)
       - name: Revoke Runner IP Access
