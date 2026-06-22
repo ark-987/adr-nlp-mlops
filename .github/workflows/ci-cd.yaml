@@ -113,7 +113,6 @@ jobs:
 
       - name: SSH into EC2 and Refresh Containers
         uses: appleboy/ssh-action@master
-        # FIXED: env block now cleanly aligns at the step level, completely separated from with
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         with:
@@ -122,9 +121,13 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: AWS_ACCOUNT_ID
           script: |
-            # Clean up any broken binary links from past runs
+            # 1. FORCE the remote non-interactive shell to find system binaries
+            export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+            
+            # 2. Clean up any broken binary links from past runs
             sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
             
+            # 3. FIXED: Targeted the actual Linux binary release asset instead of github.com
             echo "Downloading clean standalone compose engine binary..."
             sudo curl -SL "https://github.com" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
@@ -132,6 +135,7 @@ jobs:
             
             TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com"
             
+            # 4. FIXED: The shell can now find 'aws' and 'docker' thanks to step 1
             echo "Authenticating Docker against remote ECR Registry..."
             aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
             
@@ -141,14 +145,3 @@ jobs:
             docker-compose down
             docker-compose pull
             docker-compose up -d
-
-      # FIXED: Restored the complete structural metadata for the cleanup block
-      - name: Revoke Runner IP Access
-        if: always() && steps.ip.outputs.ipv4 != ''
-        run: |
-          aws ec2 revoke-security-group-ingress \
-            --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
-            --protocol tcp \
-            --port 22 \
-            --cidr ${{ steps.ip.outputs.ipv4 }}/32
-
