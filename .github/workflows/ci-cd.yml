@@ -131,7 +131,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.yml,config/prometheus.yaml" 
+          # FIXED: Uses a wildcard to copy docker-compose regardless of .yml or .yaml extension
+          source: "docker-compose.ym*,config/prometheus.yaml" 
           target: "/home/ubuntu"
 
       - name: SSH into EC2 and Refresh Containers
@@ -140,24 +141,16 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          # FIXED: 'script' is now properly indented inside the 'with' block
           script: |
             export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
             export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
             
-            # Move to the home folder
             cd /home/ubuntu
             
-            # --- DEBUG BLOCK: This will print all files so you can see exactly where they are ---
-            echo "--- Checking where files were copied ---"
-            pwd
-            ls -la
-            # -----------------------------------------------------------------------------
-            
-            # Auto-detect folder: If scp created an 'adr-nlp-mlops' folder, step into it
-            if [ -d "adr-nlp-mlops" ]; then
-              cd adr-nlp-mlops
-              echo "Stepped into adr-nlp-mlops subdirectory."
+            # FIXED: Auto-detect if it's named .yaml or .yml and rename it to standard .yml
+            if [ -f "docker-compose.yaml" ]; then
+              mv docker-compose.yaml docker-compose.yml
+              echo "Standardized docker-compose.yaml to docker-compose.yml"
             fi
             
             sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
@@ -178,7 +171,7 @@ jobs:
             docker-compose down
             docker-compose pull
             docker-compose up -d
-
+            
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
