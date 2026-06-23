@@ -142,6 +142,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          # CRITICAL FIX: Exports the GitHub variable as a remote Linux environment variable
+          envs: AWS_REGION
           script: |
             export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
             export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
@@ -156,11 +158,11 @@ jobs:
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
             
-            # REPLACED hardcoded region with variable injection via workflow context
-            TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+            # FIXED: Reads the mapped Linux environment variable ($AWS_REGION) on the EC2 host
+            TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
             
             echo "Authenticating Docker against remote ECR Registry..."
-            aws ecr get-login-password --region ${{ vars.AWS_REGION }} | docker login --username AWS --password-stdin $TARGET_REGISTRY
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $TARGET_REGISTRY
             
             export ECR_REGISTRY=$TARGET_REGISTRY
             
@@ -168,6 +170,10 @@ jobs:
             docker-compose down
             docker-compose pull
             docker-compose up -d
+        env:
+          # Mapped here so the plugin knows what value to pass across the network
+          AWS_REGION: ${{ vars.AWS_REGION }}
+
           
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
