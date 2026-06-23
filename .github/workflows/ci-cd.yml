@@ -11,9 +11,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # FIXED: Uses an alternative, robust IP resolver and forces a clean string output
       - name: Get Runner IP
         id: ip
-        run: echo "ipv4=$(curl -s https://ipify.org)" >> $GITHUB_OUTPUT
+        run: |
+          RUNNER_IP=$(curl -s https://amazonaws.com | tr -d '\n')
+          echo "ipv4=$RUNNER_IP" >> $GITHUB_OUTPUT
 
       - name: Whitelist Runner IP
         run: |
@@ -28,7 +31,7 @@ jobs:
           AWS_DEFAULT_REGION: eu-north-1
 
       - name: SSH into EC2 and Refresh Containers
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         with:
@@ -70,4 +73,3 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: eu-north-1
-
