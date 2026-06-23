@@ -131,8 +131,11 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          # FIXED: Uses a wildcard to copy docker-compose regardless of .yml or .yaml extension
-          source: "docker-compose.ym*,config/prometheus.yaml" 
+          # FIXED: Multi-line explicit listing tells scp exactly what to grab
+          source: |
+            docker-compose.yml
+            docker-compose.yaml
+            config/prometheus.yaml
           target: "/home/ubuntu"
 
       - name: SSH into EC2 and Refresh Containers
@@ -147,7 +150,7 @@ jobs:
             
             cd /home/ubuntu
             
-            # FIXED: Auto-detect if it's named .yaml or .yml and rename it to standard .yml
+            # Standardize names if it uploaded with a '.yaml' extension
             if [ -f "docker-compose.yaml" ]; then
               mv docker-compose.yaml docker-compose.yml
               echo "Standardized docker-compose.yaml to docker-compose.yml"
@@ -171,7 +174,7 @@ jobs:
             docker-compose down
             docker-compose pull
             docker-compose up -d
-            
+          
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
