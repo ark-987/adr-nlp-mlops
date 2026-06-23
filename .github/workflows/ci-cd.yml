@@ -35,7 +35,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: eu-north-1
+          AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }} # REPLACED WITH VARIABLE
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"
         run: |
@@ -55,7 +55,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
+          aws-region: ${{ vars.AWS_REGION }} # REPLACED WITH VARIABLE
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -80,19 +80,15 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      # CRITICAL STEP: This downloads the repo files onto this third, isolated server
       - name: Checkout Code Repository
         uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
+          aws-region: ${{ vars.AWS_REGION }} # FIXED: No longer missing, uses variable
 
       - name: Get Runner IP
         id: ip
@@ -101,8 +97,8 @@ jobs:
           CLEAN_IP=""
           SERVICES=(
             "https://icanhazip.com"
-            "https://checkip.amazonaws.com"
-            "https://ifconfig.me/ip"
+            "https://amazonaws.com"
+            "https://ifconfig.me"
           )
           for url in "${SERVICES[@]}"; do
             echo "Attempting to fetch IP from $url..."
@@ -135,7 +131,6 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          # FIXED: Clean single targets prevent 'tar: empty archive'
           source: |
             docker-compose.yml
             config/prometheus.yaml
@@ -152,21 +147,20 @@ jobs:
             export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
             
             cd /home/ubuntu
-            
-            # FIXED: Ensures destination folder exists for prometheus config
             mkdir -p config
             
             sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
             
             echo "Downloading clean standalone compose engine binary..."
-            sudo curl -SL "https://github.com/docker/compose/releases/download/v2.27.1/docker-compose-linux-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo curl -SL "https://github.com(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
             
-            TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com"
+            # REPLACED hardcoded region with variable injection via workflow context
+            TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
             
             echo "Authenticating Docker against remote ECR Registry..."
-            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $TARGET_REGISTRY
+            aws ecr get-login-password --region ${{ vars.AWS_REGION }} | docker login --username AWS --password-stdin $TARGET_REGISTRY
             
             export ECR_REGISTRY=$TARGET_REGISTRY
             
