@@ -90,7 +90,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # INTEGRATED FIX: Bulletproof Fallback IP Resolution
       - name: Get Runner IP
         id: ip
         run: |
@@ -135,14 +134,14 @@ jobs:
           source: "docker-compose.yml,config/prometheus.yaml" 
           target: "/home/ubuntu"
 
-      # INTEGRATED FIX: Variable mapping, binary asset targets, and proper target workspace directories
       - name: SSH into EC2 and Refresh Containers
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
+          # FIXED: 'script' is now properly indented inside the 'with' block
+          script: |
             export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
             export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
             
@@ -154,7 +153,7 @@ jobs:
             pwd
             ls -la
             # -----------------------------------------------------------------------------
-
+            
             # Auto-detect folder: If scp created an 'adr-nlp-mlops' folder, step into it
             if [ -d "adr-nlp-mlops" ]; then
               cd adr-nlp-mlops
@@ -180,7 +179,6 @@ jobs:
             docker-compose pull
             docker-compose up -d
 
-      # INTEGRATED FIX: Added cleanup teardown mechanism 
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
