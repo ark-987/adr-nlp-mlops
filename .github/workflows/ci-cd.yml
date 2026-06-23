@@ -1,4 +1,5 @@
 name: CI/CD Deployment
+name: CI/CD Deployment
 
 on:
   push:
@@ -11,26 +12,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # FIXED: Captures a completely clean, strictly valid IPv4 address
+      # STEP 1: Bulletproof Multi-Service Fallback IP Resolver
       - name: Get Runner IP
         id: ip
         run: |
           echo "Resolving runner public IP address..."
           CLEAN_IP=""
           
-          # Array of reliable public IP discovery services
           SERVICES=(
             "https://icanhazip.com"
             "https://checkip.amazonaws.com"
             "https://ifconfig.me/ip"
           )
           
-          # Loop through services until one successfully yields a valid IPv4
           for url in "${SERVICES[@]}"; do
             echo "Attempting to fetch IP from $url..."
             RAW_IP=$(curl -s --connect-timeout 5 --max-time 10 "$url" || wget -qO- --timeout=5 "$url" || true)
-            
-            # Extract only a strictly formatted IPv4 address string
             VALIDATED_IP=$(echo "$RAW_IP" | grep -E -o "([0-9]{1,3}\.){3}[0-9]{1,3}" | head -n 1)
             
             if [ ! -z "$VALIDATED_IP" ]; then
@@ -38,18 +35,17 @@ jobs:
               echo "Successfully resolved IP: $CLEAN_IP"
               break
             fi
-            echo "Warning: Service $url failed to return a valid IP. Trying next fallback..."
+            echo "Warning: Service $url failed. Trying next..."
           done
           
-          # Hard fail the pipeline step if no valid IP could be determined
           if [ -z "$CLEAN_IP" ]; then
-            echo "Error: All IP discovery services failed or returned malformed strings."
+            echo "Error: All IP discovery services failed."
             exit 1
           fi
           
-          # Export to step outputs for subsequent steps to ingest
           echo "ipv4=$CLEAN_IP" >> $GITHUB_OUTPUT
 
+      # STEP 2: Open firewall port 22 for this runner
       - name: Whitelist Runner IP
         run: |
           aws ec2 authorize-security-group-ingress \
@@ -62,23 +58,21 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: eu-north-1
 
-      # FIXED: Added 'env' mapping, 'envs' list, and corrected the docker-compose url
+      # STEP 3: Securely execute remote commands with explicit arguments
       - name: SSH into EC2 and Refresh Containers
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: AWS_ACCOUNT_ID # <-- Exposes the top-level env to the remote script
+          envs: AWS_ACCOUNT_ID
           script: |
             export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+            export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
             
             sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
             
             echo "Downloading clean standalone compose engine binary..."
-            # FIXED: Targets the real binary file instead of the github.com homepage HTML
             sudo curl -SL "https://github.com/docker/compose/releases/download/v2.27.1/docker-compose-linux-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
@@ -95,6 +89,7 @@ jobs:
             docker-compose pull
             docker-compose up -d
 
+      # STEP 4: Always lock the firewall door back down
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
