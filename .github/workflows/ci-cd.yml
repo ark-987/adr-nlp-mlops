@@ -80,8 +80,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      # CRITICAL STEP: This downloads the repo files onto this third, isolated server
       - name: Checkout Code Repository
         uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
