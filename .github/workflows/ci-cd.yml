@@ -142,12 +142,24 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
+        script: |
             export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
             export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
             
-            # Step into target directory where scp drops files
+            # Move to the home folder
             cd /home/ubuntu
+            
+            # --- DEBUG BLOCK: This will print all files so you can see exactly where they are ---
+            echo "--- Checking where files were copied ---"
+            pwd
+            ls -la
+            # -----------------------------------------------------------------------------
+
+            # Auto-detect folder: If scp created an 'adr-nlp-mlops' folder, step into it
+            if [ -d "adr-nlp-mlops" ]; then
+              cd adr-nlp-mlops
+              echo "Stepped into adr-nlp-mlops subdirectory."
+            fi
             
             sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
             
