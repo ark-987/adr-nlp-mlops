@@ -11,12 +11,19 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # FIXED: Uses an alternative, robust IP resolver and forces a clean string output
+      # FIXED: Uses alternative tool (wget) and applies a strict regex filter to catch ONLY valid IPs
       - name: Get Runner IP
         id: ip
         run: |
-          RUNNER_IP=$(curl -s https://amazonaws.com | tr -d '\n')
-          echo "ipv4=$RUNNER_IP" >> $GITHUB_OUTPUT
+          RAW_IP=$(wget -qO- https://amazonaws.com || curl -s https://icanhazip.com)
+          CLEAN_IP=$(echo "$RAW_IP" | grep -E -o "([0-3]?[0-9]{1,2}\.){3}[0-3]?[0-9]{1,2}" | head -n 1)
+          
+          if [ -z "$CLEAN_IP" ]; then
+            echo "Error: Could not resolve a valid IPv4 address string."
+            exit 1
+          fi
+          
+          echo "ipv4=$CLEAN_IP" >> $GITHUB_OUTPUT
 
       - name: Whitelist Runner IP
         run: |
