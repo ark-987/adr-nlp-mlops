@@ -131,11 +131,10 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          # The pipe symbol | tells YAML this is a multi-line list
-          source: |
-            docker-compose.yaml
-            config/prometheus.yaml
+          # FIXED: Forced single-line comma string to eliminate parsing errors
+          source: "docker-compose.yaml,config/prometheus.yaml"
           target: "/home/ubuntu"
+
 
       - name: SSH into EC2 and Refresh Containers
         uses: appleboy/ssh-action@v1.0.3
