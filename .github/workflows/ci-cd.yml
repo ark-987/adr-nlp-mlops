@@ -35,7 +35,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }} # UPDATED TO SECRET
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"
         run: |
@@ -55,7 +55,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }} # UPDATED TO SECRET
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -88,7 +88,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }} # UPDATED TO SECRET
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Get Runner IP
         id: ip
@@ -153,7 +153,6 @@ jobs:
               cp docker-compose.yaml docker-compose.yml
             fi
             
-            # Map Ubuntu's pre-installed v2 plugin to your execution pathway
             sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
             sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/bin/docker-compose
             
@@ -168,10 +167,10 @@ jobs:
             docker-compose pull
             docker-compose up -d
         env:
-          AWS_REGION: ${{ secrets.AWS_REGION }} # UPDATED TO SECRET
+          AWS_REGION: ${{ secrets.AWS_REGION }}
           
       - name: Revoke Runner IP Access
-        if: always() && steps.ip.outputs.ipv4 != ''
+        if: always() && steps.ip.outputs.ipv4 != '
         run: |
           aws ec2 revoke-security-group-ingress \
             --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
