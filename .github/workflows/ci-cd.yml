@@ -150,28 +150,24 @@ jobs:
             cd /home/ubuntu
             mkdir -p config
             
-            # Standardize names if your engine defaults to .yml
+            # Ensure the standard file naming structure is present
             if [ -f "docker-compose.yaml" ] && [ ! -f "docker-compose.yml" ]; then
               cp docker-compose.yaml docker-compose.yml
             fi
-            
-            sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
-            
-            echo "Downloading clean standalone compose engine binary..."
-            sudo curl -SL "https://github.com(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-            sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
             
             TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $TARGET_REGISTRY
             
             export ECR_REGISTRY=$TARGET_REGISTRY
             
-            docker-compose down
-            docker-compose pull
-            docker-compose up -d
+            # FIXED: Removed the broken download lines completely. 
+            # This uses your system's built-in docker compose plugin engine.
+            docker compose down
+            docker compose pull
+            docker compose up -d
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
+
          
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
