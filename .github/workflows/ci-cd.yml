@@ -142,8 +142,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          # Passes both your region and the direct binary source safely
-          envs: AWS_REGION,BINARY_URL
+          envs: AWS_REGION
           script: |
             export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
             export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
@@ -155,26 +154,25 @@ jobs:
               cp docker-compose.yaml docker-compose.yml
             fi
             
-            # Wipe any stale broken links safely
+            # Clean out any old, broken standalone binary downloads or bad links
             sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
             
-            echo "Downloading standalone compose engine from external runner variable context..."
-            sudo curl -fSL "$BINARY_URL" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-            sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+            echo "=== Let Ubuntu handle Docker Compose via apt ==="
+            sudo apt-get update -y
+            sudo apt-get install -y docker-compose
             
+            echo "=== Authenticating with AWS ECR ==="
             TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $TARGET_REGISTRY
             
             export ECR_REGISTRY=$TARGET_REGISTRY
             
+            echo "=== Refreshing Stack Containers ==="
             docker-compose down
             docker-compose pull
             docker-compose up -d
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          # Stored outside the block string to bypass text formatting constraints
-          BINARY_URL: "https://github.com"
 
          
       - name: Revoke Runner IP Access
