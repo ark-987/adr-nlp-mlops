@@ -35,7 +35,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }} # REPLACED WITH VARIABLE
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }} # REPLACED WITH VARIABLE
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"
         run: |
@@ -55,7 +55,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }} # REPLACED WITH VARIABLE
+          aws-region: ${{ secrets.AWS_REGION }} # REPLACED WITH VARIABLE
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -88,7 +88,8 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }} 
+          aws-region: ${{ secrets.AWS_REGION }} 
+
       - name: Get Runner IP
         id: ip
         run: |
@@ -171,7 +172,7 @@ jobs:
             docker-compose up -d
         env:
           # Mapped here so the plugin knows what value to pass across the network
-          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
 
           
       - name: Revoke Runner IP Access
