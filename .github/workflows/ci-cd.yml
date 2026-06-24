@@ -170,10 +170,11 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           
       - name: Revoke Runner IP Access
-        if: always() && steps.ip.outputs.ipv4 != '
+        if: always() && steps.ip.outputs.ipv4 != ''
         run: |
           aws ec2 revoke-security-group-ingress \
             --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
             --protocol tcp \
             --port 22 \
             --cidr "${{ steps.ip.outputs.ipv4 }}/32" || true
+
