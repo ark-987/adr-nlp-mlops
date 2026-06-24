@@ -150,7 +150,6 @@ jobs:
             cd /home/ubuntu
             mkdir -p config
             
-            # Ensure the standard file naming structure is present
             if [ -f "docker-compose.yaml" ] && [ ! -f "docker-compose.yml" ]; then
               cp docker-compose.yaml docker-compose.yml
             fi
@@ -160,8 +159,7 @@ jobs:
             
             export ECR_REGISTRY=$TARGET_REGISTRY
             
-            # FIXED: Removed the broken download lines completely. 
-            # This uses your system's built-in docker compose plugin engine.
+            # Clean and modern: no downloads, no hyphens, no syntax clutter
             docker compose down
             docker compose pull
             docker compose up -d
