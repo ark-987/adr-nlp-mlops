@@ -159,10 +159,10 @@ jobs:
             
             export ECR_REGISTRY=$TARGET_REGISTRY
             
-            # Clean and modern: no downloads, no hyphens, no syntax clutter
-            docker compose down
-            docker compose pull
-            docker compose up -d
+            # FIXED: Reverted back to the hyphenated engine your host expects
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
