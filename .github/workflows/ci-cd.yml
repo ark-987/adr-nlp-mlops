@@ -131,8 +131,9 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          # The pipe symbol | tells YAML this is a multi-line list
           source: |
-            docker-compose.yml
+            docker-compose.yaml
             config/prometheus.yaml
           target: "/home/ubuntu"
 
@@ -142,7 +143,6 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          # CRITICAL FIX: Exports the GitHub variable as a remote Linux environment variable
           envs: AWS_REGION
           script: |
             export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
@@ -151,6 +151,11 @@ jobs:
             cd /home/ubuntu
             mkdir -p config
             
+            # Standardize names if your engine defaults to .yml
+            if [ -f "docker-compose.yaml" ] && [ ! -f "docker-compose.yml" ]; then
+              cp docker-compose.yaml docker-compose.yml
+            fi
+            
             sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
             
             echo "Downloading clean standalone compose engine binary..."
@@ -158,23 +163,17 @@ jobs:
             sudo chmod +x /usr/local/bin/docker-compose
             sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
             
-            # FIXED: Reads the mapped Linux environment variable ($AWS_REGION) on the EC2 host
             TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-            
-            echo "Authenticating Docker against remote ECR Registry..."
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $TARGET_REGISTRY
             
             export ECR_REGISTRY=$TARGET_REGISTRY
             
-            echo "Executing application container refresh via standalone compose engine..."
             docker-compose down
             docker-compose pull
             docker-compose up -d
         env:
-          # Mapped here so the plugin knows what value to pass across the network
           AWS_REGION: ${{ secrets.AWS_REGION }}
-
-          
+         
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
