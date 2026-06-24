@@ -142,7 +142,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: AWS_REGION
+          # Passes both your region and the direct binary source safely
+          envs: AWS_REGION,BINARY_URL
           script: |
             export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
             export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
@@ -154,17 +155,26 @@ jobs:
               cp docker-compose.yaml docker-compose.yml
             fi
             
+            # Wipe any stale broken links safely
+            sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
+            
+            echo "Downloading standalone compose engine from external runner variable context..."
+            sudo curl -fSL "$BINARY_URL" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+            sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+            
             TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $TARGET_REGISTRY
             
             export ECR_REGISTRY=$TARGET_REGISTRY
             
-            # FIXED: Reverted back to the hyphenated engine your host expects
             docker-compose down
             docker-compose pull
             docker-compose up -d
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
+          # Stored outside the block string to bypass text formatting constraints
+          BINARY_URL: "https://github.com"
 
          
       - name: Revoke Runner IP Access
