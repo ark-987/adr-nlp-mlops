@@ -35,7 +35,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }} # REPLACED WITH VARIABLE
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }} # UPDATED TO SECRET
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"
         run: |
@@ -55,7 +55,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }} # REPLACED WITH VARIABLE
+          aws-region: ${{ secrets.AWS_REGION }} # UPDATED TO SECRET
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -88,7 +88,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }} 
+          aws-region: ${{ secrets.AWS_REGION }} # UPDATED TO SECRET
 
       - name: Get Runner IP
         id: ip
@@ -109,7 +109,6 @@ jobs:
               echo "Successfully resolved IP: $CLEAN_IP"
               break
             fi
-            echo "Warning: Service $url failed. Trying next..."
           done
           if [ -z "$CLEAN_IP" ]; then
             echo "Error: All IP discovery services failed."
@@ -131,10 +130,10 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          # FIXED: Forced single-line comma string to eliminate parsing errors
-          source: "docker-compose.yaml,config/prometheus.yaml"
+          source: |
+            docker-compose.yaml
+            config/prometheus.yaml
           target: "/home/ubuntu"
-
 
       - name: SSH into EC2 and Refresh Containers
         uses: appleboy/ssh-action@v1.0.3
@@ -154,12 +153,9 @@ jobs:
               cp docker-compose.yaml docker-compose.yml
             fi
             
-            # Clean out any old, broken standalone binary downloads or bad links
-            sudo rm -f /usr/local/bin/docker-compose /usr/bin/docker-compose
-            
-            echo "=== Let Ubuntu handle Docker Compose via apt ==="
-            sudo apt-get update -y
-            sudo apt-get install -y docker-compose
+            # Map Ubuntu's pre-installed v2 plugin to your execution pathway
+            sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+            sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/bin/docker-compose
             
             echo "=== Authenticating with AWS ECR ==="
             TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
@@ -172,9 +168,8 @@ jobs:
             docker-compose pull
             docker-compose up -d
         env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-
-         
+          AWS_REGION: ${{ secrets.AWS_REGION }} # UPDATED TO SECRET
+          
       - name: Revoke Runner IP Access
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |
