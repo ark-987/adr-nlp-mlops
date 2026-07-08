@@ -1,6 +1,5 @@
-
 services:
-  # 1. THE FASTAPI INFERENCE CORE
+    # 1. THE FASTAPI INFERENCE CORE
   api:
     build:
       context: .
@@ -9,17 +8,18 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - AWS_DEFAULT_REGION=eu-west-1
+      - AWS_DEFAULT_REGION=eu-north-1
+      - ALLOW_MOCK_MODE=false
+      # AWS credentials removed - Handled automatically by EC2 IAM Role in production
     volumes:
-      # SECURE VOLUME INJECTION: Maps your laptop's hidden AWS credentials directly into the container
-      - ~/.aws:/root/.aws:ro
+      - ./data:/app/data
     restart: always
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 90s # Increased from 15s to 90s to allow for the S3 download and model loading process to complete before health checks begin.
 
   # 2. THE STREAMLIT USER FRONTEND
   streamlit:

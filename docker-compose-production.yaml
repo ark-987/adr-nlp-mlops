@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  api:
+    # 1. Swap 'build' for your secure AWS ECR Registry path
+    image: ${ECR_REGISTRY}/adr-nlp-api:latest
+
+    container_name: adr_nlp_api_serving
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_DEFAULT_REGION=eu-north-1
+      - ALLOW_MOCK_MODE=false # Enforces real model download on EC2
+    # 2. Removed the local './data' volume mount completely for production security
+    restart: always
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      # 3. Increased to 180s to give the EC2 instance plenty of time to download the real zip from S3
+      start_period: 180s 
+
+  streamlit:
+    image: ${ECR_REGISTRY}/adr-nlp-frontend:latest
+    container_name: adr_nlp_frontend_streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    restart: always
