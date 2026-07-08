@@ -1,31 +1,29 @@
-services:
-    # 1. THE FASTAPI INFERENCE CORE
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: adr_nlp_api_serving
-    ports:
-      - "8000:8000"
-    environment:
-      - AWS_DEFAULT_REGION=eu-north-1
-      - ALLOW_MOCK_MODE=false
-      # AWS credentials removed - Handled automatically by EC2 IAM Role in production
-    volumes:
-      - ./data:/app/data
-    restart: always
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 90s # Increased from 15s to 90s to allow for the S3 download and model loading process to complete before health checks begin.
 
-  # 2. THE STREAMLIT USER FRONTEND
+  # 1. THE FASTAPI INFERENCE CORE
+  services:
+    api:
+      image: ${ECR_REGISTRY}/adr-nlp-api:latest
+      deploy:
+        resources:
+          limits:
+            memory: 4G
+      container_name: adr_nlp_api_serving
+      ports:
+      - "8000:8000"
+      environment:
+      - AWS_DEFAULT_REGION=eu-north-1
+      - MODEL_S3_BUCKET=adr-nlp-mlops-bucket-ayesha 
+      restart: always
+      healthcheck:
+        test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 15s
+
+  # 2. THE STREAMLIT FRONTEND
   streamlit:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
+    image: ${ECR_REGISTRY}/adr-nlp-frontend:latest
     container_name: adr_nlp_frontend_streamlit
     ports:
       - "8501:8501"
@@ -33,9 +31,8 @@ services:
       - API_URL=http://api:8000
     depends_on:
       api:
-        condition: service_healthy  # Streamlit waits until BioBERT is fully loaded in memory
+        condition: service_healthy
     restart: always
-
   # 3. THE TELEMETRY WATCHDOG
   prometheus:
     image: prom/prometheus:latest

@@ -1,0 +1,180 @@
+name: MLOps Continuous Integration & Deployment (AWS Core)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  code-quality-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python Sandbox Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements_dev.txt ]; then pip install -r requirements_dev.txt; fi
+
+      - name: Execute Linting Syntax Check (Flake8)
+        run: |
+          flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run Tests with AWS Credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+        run: |
+          export PYTHONPATH="."
+          pytest
+
+  build-and-ship-container:
+    needs: code-quality-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag, and Push Backend Image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/adr-nlp-api:latest .
+          docker push $ECR_REGISTRY/adr-nlp-api:latest
+
+      - name: Build, Tag, and Push Frontend Image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/adr-nlp-frontend:latest -f Dockerfile.frontend .
+          docker push $ECR_REGISTRY/adr-nlp-frontend:latest
+
+  deploy-to-ec2:
+    needs: build-and-ship-container
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Get Runner IP
+        id: ip
+        run: |
+          echo "Resolving runner public IP address..."
+          CLEAN_IP=""
+          SERVICES=(
+            "https://icanhazip.com"
+            "https://amazonaws.com"
+            "https://ifconfig.me"
+          )
+          for url in "${SERVICES[@]}"; do
+            echo "Attempting to fetch IP from $url..."
+            RAW_IP=$(curl -s --connect-timeout 5 --max-time 10 "$url" || wget -qO- --timeout=5 "$url" || true)
+            VALIDATED_IP=$(echo "$RAW_IP" | grep -E -o "([0-9]{1,3}\.){3}[0-9]{1,3}" | head -n 1)
+            if [ ! -z "$VALIDATED_IP" ]; then
+              CLEAN_IP=$VALIDATED_IP
+              echo "Successfully resolved IP: $CLEAN_IP"
+              break
+            fi
+          done
+          if [ -z "$CLEAN_IP" ]; then
+            echo "Error: All IP discovery services failed."
+            exit 1
+          fi
+          echo "ipv4=$CLEAN_IP" >> $GITHUB_OUTPUT
+
+      - name: Whitelist Runner IP
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr "${{ steps.ip.outputs.ipv4 }}/32" || true
+
+      - name: Copy Docker Compose to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: |
+            docker-compose.yaml
+            config/prometheus.yaml
+          target: "/home/ubuntu"
+
+      - name: SSH into EC2 and Refresh Containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: AWS_REGION
+          script: |
+            export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+            export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
+            
+            cd /home/ubuntu
+            mkdir -p config
+            
+            if [ -f "docker-compose.yaml" ] && [ ! -f "docker-compose.yml" ]; then
+              cp docker-compose.yaml docker-compose.yml
+            fi
+            
+            sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+            sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/bin/docker-compose
+            
+            echo "=== Authenticating with AWS ECR ==="
+            TARGET_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $TARGET_REGISTRY
+            
+            export ECR_REGISTRY=$TARGET_REGISTRY
+            
+            echo "=== Refreshing Stack Containers ==="
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          
+      - name: Revoke Runner IP Access
+        if: always() && steps.ip.outputs.ipv4 != ''
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id ${{ secrets.AWS_SECURITY_GROUP_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr "${{ steps.ip.outputs.ipv4 }}/32" || true
+

@@ -1,25 +1,16 @@
 project:
   name: adr-nlp
 
-#gcp:
-  #project_id: "project-edc577ab-2a6a-4016-89e"
-  #bucket_name: "adr-nlp" 
-  # This tells FastAPI exactly which file to download
-  #model_gcs_file: "final_model.zip" 
-  #raw_gcs_path: "data/drugsComTrain_raw.csv"
-  #model_blob_path: "models/final_model.zip"
 aws:
   region_name: "eu-west-1"               # Adjust to your preferred AWS region
-  bucket_name: "adr-nlp-model-bucket"    # You will create this bucket name in AWS
+  bucket_name: "adr-nlp-mlops-bucket-ayesha"    # Your bucket name in AWS
   model_s3_path: "models/final_model.zip"
 
-paths:
-  model_dir: "models/adr-nlp-final"
 
 dataset:
   name: "engsaiedali/drugscomtrain-raw"
   text_column: "review"
-  target_column: "rating"
+  target_column: "adr_label"
 
 agent:
   lowercase: false
@@ -34,8 +25,8 @@ split:
   test_size: 0.1
   val_size: 0.1
 
-mlflow:
-  tracking_uri: "http://your-remote-mlflow-server-ip:5000"
+mlflow:                                   #127.0.0.1 means "localhost" (personal laptop). The actual mof'iw was tracking in kaggle notebook session
+  tracking_uri: "http://127.0.0.1:5000"   #for passing syntactic testinh I put this mock ip address for '-remote-mlflow-server-ip' (next time point tracking_uri to Amazon S3 bucket path (e.g., s3://your-s3-bucket-name/mlflow-runs/
   experiment_name: "adr-nlp-clinical-classification"
   registered_model_name: "biobert_adr_classifier"
 
@@ -54,11 +45,11 @@ paths:
   models: "models/production_live_adr_nlp"
 
 gcp:
-  bucket_name: "project-edc577ab-2a6a-4016-89e-bucket" # Your actual bucket name
+  bucket_name: "project-edc577ab-2a6a-4016-89e-bucket" 
+  raw_gcs_path: "data/drugsComTrain_raw.csv"
+  processed_gcs_dir: "data/processed/split"        
   model_blob_path: "models/final_model.zip"
 
-paths:
-  model_dir: "models/adr-nlp-final"
 
 
 
