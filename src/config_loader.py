@@ -1,33 +1,77 @@
 import os
+from pathlib import Path
+
 import yaml
+
 
 def load_config():
     """
-    Loads pipeline.yaml using absolute path resolution to guarantee
-    successful lookups under local testing, Uvicorn, or Docker run contexts.
+    Load the application configuration from config/pipeline.yaml.
+
+    This works consistently whether the application is executed:
+      - locally
+      - inside Docker
+      - via Uvicorn
+      - during GitHub Actions tests
     """
-    # 1. Determine the absolute directory path of the root project workspace
-    # __file__ is src/config_loader.py -> parent is src/ -> grandparent is root/
-    current_file_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_file_dir, ".."))
 
-    # 2. Map direct absolute paths to your config directory positions
-    config_path = os.path.join(project_root, "config", "pipeline.yaml")
-    fallback_path = os.path.join(project_root, "pipeline.yaml")
+    # ----------------------------------------------------------
+    # Project root
+    # src/config_loader.py -> src -> project root
+    # ----------------------------------------------------------
 
-    # 3. Choose the active file pathway location
-    final_path = config_path if os.path.exists(config_path) else fallback_path
+    project_root = Path(__file__).resolve().parent.parent
 
-    if not os.path.exists(final_path):
-        raise FileNotFoundError(f"Configuration file not found via absolute mapping at: {final_path}")
+    # ----------------------------------------------------------
+    # Candidate configuration locations
+    # ----------------------------------------------------------
 
-    # 4. Parse your flat YAML structure
-    with open(final_path, "r") as f:
+    candidate_paths = [
+
+        project_root / "config" / "pipeline.yaml",
+
+        project_root / "pipeline.yaml",
+
+    ]
+
+    # ----------------------------------------------------------
+    # Locate configuration file
+    # ----------------------------------------------------------
+
+    config_path = None
+
+    for path in candidate_paths:
+
+        if path.exists():
+
+            config_path = path
+
+            break
+
+    if config_path is None:
+
+        searched = "\n".join(str(p) for p in candidate_paths)
+
+        raise FileNotFoundError(
+
+            f"pipeline.yaml not found.\n\nSearched:\n{searched}"
+
+        )
+
+    # ----------------------------------------------------------
+    # Parse YAML
+    # ----------------------------------------------------------
+
+    with open(config_path, "r", encoding="utf-8") as f:
+
         config = yaml.safe_load(f)
-        
+
+    if config is None:
+
+        raise ValueError(
+
+            f"Configuration file is empty: {config_path}"
+
+        )
+
     return config
-
-
-
-
-

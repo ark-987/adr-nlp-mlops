@@ -1,58 +1,139 @@
 import os
-import zipfile
 import shutil
+import zipfile
+from pathlib import Path
+
 import boto3
-from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+from botocore.exceptions import (
+    NoCredentialsError,
+    PartialCredentialsError,
+    ClientError,
+)
+
 
 def get_s3_client():
-    """Initializes the AWS S3 client using automatic environmental authentication."""
+    """
+    Create an S3 client using credentials supplied through
+    the environment (GitHub Actions, EC2 IAM Role, or AWS keys).
+    """
     try:
-        # Boto3 automatically scans for AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY 
-        # inside your running Docker or GitHub environment variables.
         return boto3.client("s3")
     except Exception as e:
-        print(f"[INFO] AWS credentials missing or blocked ({e}). Activating Local Fallback Mode.")
+        print(f"[S3] Unable to initialise S3 client: {e}")
         return None
 
-def download_and_extract_model_from_s3(bucket_name, source_s3_key, extract_to_dir="models/adr-nlp-final"):
-    """Downloads your fine-tuned BioBERT zip bundle from Amazon S3 and extracts it to disk."""
+
+def download_and_extract_model_from_s3(
+    bucket_name: str,
+    source_s3_key: str,
+    extract_to_dir: str,
+):
+    """
+    Download the production BioClinicalBERT model from S3
+    and extract it into the supplied directory.
+
+    Returns
+    -------
+    bool
+        True if a usable model is available.
+    """
+
     client = get_s3_client()
-    
-    # CRITICAL SECURITY ANCHOR: Guarantee parent paths exist for extraction targets
-    os.makedirs(extract_to_dir, exist_ok=True)
-    
-    # Secure parent execution directory for temporary file processing
-    os.makedirs("models", exist_ok=True)
-    local_zip_path = os.path.join("models", "temp_model.zip")
 
-    # 1. REAL AWS CLOUD DOWNLOAD OPERATION
+    extract_path = Path(extract_to_dir)
+    extract_path.mkdir(parents=True, exist_ok=True)
+
+    temp_zip = extract_path.parent / "model.zip"
+
+    # -------------------------------------------------------
+    # Production path
+    # -------------------------------------------------------
+
     if client is not None:
-        try:
-            print(f"[BOOT] Reaching out to AWS cloud bucket: s3://{bucket_name}/{source_s3_key}...")
-            client.download_file(bucket_name, source_s3_key, local_zip_path)
-            print(f"  Downloaded model archive package successfully to {local_zip_path}")
-            
-            # Extract the raw Hugging Face shards
-            with zipfile.ZipFile(local_zip_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_to_dir)
-            
-            # Clean up the raw zip file to save container space
-            os.remove(local_zip_path)
-            print(f"  BioBERT weights unpacked cleanly inside: {extract_to_dir}/")
-            return True
-        except (NoCredentialsError, PartialCredentialsError):
-            print("[AWS ERROR] Invalid or missing AWS Credentials. Attempting local mock fallback...")
-        except Exception as e:
-            print(f"[AWS ERROR] Model download sequence failed: {e}. Attempting local mock fallback...")
 
-    # 2. OFFLINE BACKUP SIMULATION (Aligned exclusively with your AWS migration schema)
-    mock_source_dir = os.path.join("data", "mock_aws_s3_bucket", "models")
-    print(f"[MOCK S3 DOWNLOAD] Searching for local fallback weights inside: {mock_source_dir}")
-    
-    if os.path.exists(mock_source_dir):
-        shutil.copytree(mock_source_dir, extract_to_dir, dirs_exist_ok=True)
-        print(f"  Mock BioBERT shards cloned successfully from workspace folder cache into {extract_to_dir}")
+        try:
+
+            print(
+                f"[BOOT] Downloading model from "
+                f"s3://{bucket_name}/{source_s3_key}"
+            )
+
+            client.download_file(
+                bucket_name,
+                source_s3_key,
+                str(temp_zip),
+            )
+
+            print("[BOOT] Model archive downloaded.")
+
+            with zipfile.ZipFile(temp_zip, "r") as archive:
+                archive.extractall(extract_path)
+
+            temp_zip.unlink(missing_ok=True)
+
+            print(
+                f"[BOOT] Model extracted to {extract_path}"
+            )
+
+            return True
+
+        except (
+            NoCredentialsError,
+            PartialCredentialsError,
+        ):
+
+            print(
+                "[AWS] Missing AWS credentials."
+            )
+
+        except ClientError as e:
+
+            print(
+                f"[AWS] S3 download failed: {e}"
+            )
+
+        except zipfile.BadZipFile:
+
+            print(
+                "[BOOT] Downloaded model archive is corrupted."
+            )
+
+        except Exception as e:
+
+            print(
+                f"[BOOT] Unexpected error: {e}"
+            )
+
+    # -------------------------------------------------------
+    # Local testing fallback
+    # -------------------------------------------------------
+
+    mock_model = (
+        Path("data")
+        / "mock_aws_s3_bucket"
+        / "models"
+    )
+
+    print(
+        "[BOOT] Attempting local fallback model..."
+    )
+
+    if mock_model.exists():
+
+        shutil.copytree(
+            mock_model,
+            extract_path,
+            dirs_exist_ok=True,
+        )
+
+        print(
+            "[BOOT] Local fallback model loaded."
+        )
+
         return True
-    
-    print(f"[CRITICAL FAILURE] No model assets found in AWS cloud or local mock caches!")
+
+    print(
+        "[BOOT] No model available from S3 or local fallback."
+    )
+
     return False
