@@ -1,33 +1,87 @@
 FROM python:3.10-slim
 
+
+# ==========================================================
+# Runtime configuration
+# ==========================================================
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH="."
+    PYTHONPATH=/app
 
-# Step 1: Copy only requirements to leverage Docker cache
+
+
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \     
-    build-essential \     
+
+
+# ==========================================================
+# System dependencies
+# ==========================================================
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+
+
+
+# ==========================================================
+# Install Python dependencies
+# ==========================================================
 
 COPY requirements.txt .
 
-# Step 2: Upgrade pip (cached unless base image changes)
-RUN pip install --no-cache-dir --upgrade pip
 
-# Step 3: Install heavy CPU torch (cached unless this specific line changes)
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN python -m pip install --upgrade pip
 
-# Step 4: Install remaining packages (invalidated only if requirements.txt changes)
-RUN pip install --no-cache-dir --no-compile -r requirements.txt
 
+
+# PyTorch CPU build for BioBERT inference
+
+RUN pip install --no-cache-dir \
+    torch \
+    --index-url https://download.pytorch.org/whl/cpu
+
+
+
+RUN pip install --no-cache-dir \
+    -r requirements.txt
+
+
+
+
+# ==========================================================
+# Application files
+# ==========================================================
+
+
+COPY src/ ./src/
 
 COPY config/ ./config/
-COPY src/ ./src/
+
+
+
+# Runtime model location
+# This is where S3 extraction will place the model
+
+RUN mkdir -p /app/models/production_live_adr_nlp
+
+
+
+# ==========================================================
+# FastAPI port
+# ==========================================================
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
 
+
+
+# ==========================================================
+# Application startup
+# ==========================================================
+
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
 

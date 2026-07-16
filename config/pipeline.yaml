@@ -1,55 +1,112 @@
 project:
   name: adr-nlp
 
-aws:
-  region_name: "eu-west-1"               # Adjust to your preferred AWS region
-  bucket_name: "adr-nlp-mlops-bucket-ayesha"    # Your bucket name in AWS
-  model_s3_path: "models/final_model.zip"
+# ==========================================================
+# AWS CONFIGURATION
+# ==========================================================
 
+aws:
+  region_name: eu-north-1
+  bucket_name: adr-nlp-mlops-bucket-ayesha
+  model_s3_path: models/final_model.zip
+
+# ==========================================================
+# DATASET
+# ==========================================================
 
 dataset:
-  name: "engsaiedali/drugscomtrain-raw"
-  text_column: "review"
-  target_column: "adr_label"
+  name: engsaiedali/drugscomtrain-raw
+  text_column: review
+  target_column: adr_label
+
+# ==========================================================
+# TEXT PREPROCESSING
+# ==========================================================
 
 agent:
   lowercase: false
   remove_noise_chars: true
+
+# ==========================================================
+# PIPELINE SWITCHES
+# ==========================================================
 
 pipeline:
   run_data: true
   run_training: true
   run_xai: true
 
+# ==========================================================
+# DATA SPLITS
+# ==========================================================
+
 split:
-  test_size: 0.1
-  val_size: 0.1
+  test_size: 0.10
+  val_size: 0.10
 
-mlflow:                                   #127.0.0.1 means "localhost" (personal laptop). The actual mof'iw was tracking in kaggle notebook session
-  tracking_uri: "http://127.0.0.1:5000"   #for passing syntactic testinh I put this mock ip address for '-remote-mlflow-server-ip' (next time point tracking_uri to Amazon S3 bucket path (e.g., s3://your-s3-bucket-name/mlflow-runs/
-  experiment_name: "adr-nlp-clinical-classification"
-  registered_model_name: "biobert_adr_classifier"
+# ==========================================================
+# MODEL TRAINING
+# ==========================================================
 
-# ROOT PARAMETERS
-training_model_name: "emilyalsentzer/Bio_ClinicalBERT"
-training_epochs: 5
-training_batch_size: 16
+training:
+
+  pretrained_model: emilyalsentzer/Bio_ClinicalBERT
+
+  epochs: 5
+
+  batch_size: 16
+
+# ==========================================================
+# PRODUCTION MODEL
+# ==========================================================
+
+production:
+
+  model_name: biobert_adr_classifier
+
+# ==========================================================
+# FILE PATHS
+# ==========================================================
 
 paths:
-  dummy_data: "data/raw/dummy/drugsComTrainSMALL.csv"
-  raw_data_dir: "data/raw"
-  raw_data_file: "data/raw/drugsComTrain_raw.csv"
-  cleaned_data_file: "data/processed/drugsComTrain_cleaned.csv"
-  split_dir: "data/processed/split"
-  # Isolate production model local folder
-  models: "models/production_live_adr_nlp"
+
+  raw_data_dir: data/raw
+
+  raw_data_file: data/raw/drugsComTrain_raw.csv
+
+  cleaned_data_file: data/processed/drugsComTrain_cleaned.csv
+
+  split_dir: data/processed/split
+
+  dummy_data: data/raw/dummy/drugsComTrainSMALL.csv
+
+  model_dir: models/production_live_adr_nlp
+
+# ==========================================================
+# MLFLOW
+# ==========================================================
+
+mlflow:
+
+  tracking_uri: http://127.0.0.1:5000
+
+  experiment_name: adr-nlp-clinical-classification
+
+  registered_model_name: biobert_adr_classifier
+
+# ==========================================================
+# OPTIONAL GCP BACKUP
+# ==========================================================
 
 gcp:
-  bucket_name: "project-edc577ab-2a6a-4016-89e-bucket" 
-  raw_gcs_path: "data/drugsComTrain_raw.csv"
-  processed_gcs_dir: "data/processed/split"        
-  model_blob_path: "models/final_model.zip"
 
+  bucket_name: project-edc577ab-2a6a-4016-89e-bucket
+
+  raw_gcs_path: data/drugsComTrain_raw.csv
+
+  processed_gcs_dir: data/processed/split
+
+  model_blob_path: models/final_model.zip
 
 
 

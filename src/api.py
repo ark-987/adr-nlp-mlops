@@ -1,128 +1,328 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request, status
+
+import torch
+
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Request,
+    status,
+)
+
 from fastapi.middleware.cors import CORSMiddleware
+
 from pydantic import BaseModel, Field
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+from transformers import (
+    AutoTokenizer,
+    AutoModelForSequenceClassification,
+)
+
 from prometheus_fastapi_instrumentator import Instrumentator
 
-# Slowapi Rate Limiting Tools
+
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-# Local core pipeline imports
+
 from src.config_loader import load_config
-from src.s3_utils import download_and_extract_model_from_s3 
+from src.s3_utils import download_and_extract_model_from_s3
 
-# 1. Instantiate the Rate Limiter (Default to local memory backend)
-limiter = Limiter(
-    key_func=get_remote_address,
-    storage_uri=os.getenv("RATE_LIMIT_STORAGE_URL", "memory://")
-)
 
-# Define global placeholder hooks to freeze BioBERT layers inside container RAM
+
+# ==========================================================
+# GLOBAL MODEL STATE
+# ==========================================================
+
 model = None
 tokenizer = None
 
+
+
+# ==========================================================
+# RATE LIMITING
+# ==========================================================
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=os.getenv(
+        "RATE_LIMIT_STORAGE_URL",
+        "memory://"
+    ),
+)
+
+
+
+# ==========================================================
+# APPLICATION STARTUP
+# ==========================================================
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Executes automatically EXACTLY ONCE when the server container turns on."""
-    global model, tokenizer
-    
+
+    global model
+    global tokenizer
+
+
+    print("[BOOT] Starting ADR NLP API...")
+
+
     try:
-        # Dynamically map cloud schemas straight from your pipeline.yaml variables
+
         config = load_config()
-        bucket_name = config["aws"]["bucket_name"]         
-        model_blob_name = config["aws"]["model_s3_path"]   
-        local_extract_dir = config["paths"]["model_dir"]   
-        
-        # Call your AWS Downloader
-        success = download_and_extract_model_from_s3(
-            bucket_name=bucket_name,
-            source_s3_key=model_blob_name,
-            extract_to_dir=local_extract_dir
+
+
+        bucket = config["aws"]["bucket_name"]
+
+        model_zip = config["aws"]["model_s3_path"]
+
+        model_dir = config["paths"]["model_dir"]
+
+
+
+        print(
+            f"[BOOT] Model source: s3://{bucket}/{model_zip}"
         )
+
+
+        downloaded = download_and_extract_model_from_s3(
+            bucket_name=bucket,
+            source_s3_key=model_zip,
+            extract_to_dir=model_dir,
+        )
+
+
+        if downloaded:
+
+            model_location = model_dir
+
+        else:
+
+            print(
+                "[BOOT] Using HuggingFace fallback model"
+            )
+
+            model_location = (
+                config["training"]["pretrained_model"]
+            )
+
+
+        print(
+            f"[BOOT] Loading tokenizer from {model_location}"
+        )
+
+
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_location
+        )
+
+
+        print(
+            "[BOOT] Loading transformer model..."
+        )
+
+
+        model = AutoModelForSequenceClassification.from_pretrained(
+            model_location
+        )
+
+
+        model.eval()
+
+
+        print(
+            "[BOOT] Model successfully loaded."
+        )
+
+
     except Exception as e:
-        print(f"[WARNING] Config or S3 load failed: {e}. Falling back to mock/local init for testing.")
-        success = False
-    
-    # 👇 FIX 1: Prevent CI crashes from bricking the entire web app
-    if not success:
-        print("[CI/TEST FALLBACK] AWS assets missing. Loading light clinical model fallback for pipeline validation.")
-        local_extract_dir = "emilyalsentzer/Bio_ClinicalBERT"
-        
-    print(f"[BOOT] Initializing BioBERT weights into server memory from: {local_extract_dir}")
-    tokenizer = AutoTokenizer.from_pretrained(local_extract_dir)
-    model = AutoModelForSequenceClassification.from_pretrained(local_extract_dir)
-    print("[BOOT] Server application memory securely initialized! Accepting network traffic.")
+
+        print(
+            f"[BOOT ERROR] Model startup failed: {e}"
+        )
+
+
+        raise e
+
+
+
     yield
 
 
-# Instantiate the primary FastAPI engine with the runtime initialization lifecycles
-app = FastAPI(lifespan=lifespan)
 
-# 👇 FIX 2: Bind the limiter state directly onto the active app configuration
+    print(
+        "[SHUTDOWN] API stopped."
+    )
+
+
+
+# ==========================================================
+# FASTAPI APPLICATION
+# ==========================================================
+
+app = FastAPI(
+    title="ADR NLP Clinical Classification API",
+    lifespan=lifespan,
+)
+
+
+
+# ==========================================================
+# RATE LIMITING SETUP
+# ==========================================================
+
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# BROWSER SAFETY: Enable Cross-Origin Handshaking with your Streamlit UI components
+app.add_exception_handler(
+    RateLimitExceeded,
+    _rate_limit_exceeded_handler,
+)
+
+
+
+# ==========================================================
+# CORS
+# ==========================================================
+
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=["*"],
+
     allow_credentials=True,
+
     allow_methods=["*"],
+
     allow_headers=["*"],
 )
 
-# INPUT GUARDRAIL: Strict incoming type and token bounding schema validation using Pydantic
-class ReviewInput(BaseModel):
-    review: str = Field(..., min_length=5, max_length=1000)
 
-# =========================================================================
-# SYSTEM NETWORK ROUTES (ENDPOINTS)
-# =========================================================================
+
+# ==========================================================
+# REQUEST SCHEMA
+# ==========================================================
+
+class ReviewInput(BaseModel):
+
+    review: str = Field(
+        ...,
+        min_length=5,
+        max_length=1000,
+    )
+
+
+
+# ==========================================================
+# HEALTH CHECK
+# ==========================================================
 
 @app.get("/health")
-async def liveness_probe():
-    """Liveness probe checkpoint for Docker Compose health checking metrics."""
-    return {"status": "healthy"}
+async def health():
 
-# 👇 FIX 3: Add the limiter decorator to the endpoint under testing!
+    if model is None:
+
+        raise HTTPException(
+            status_code=503,
+            detail="Model not loaded"
+        )
+
+
+    return {
+        "status": "healthy",
+        "model_loaded": True,
+    }
+
+
+
+# ==========================================================
+# INFERENCE ENDPOINT
+# ==========================================================
+
 @app.post("/predict")
 @limiter.limit("5/minute")
-async def predict_adr(data: ReviewInput, request: Request): # 👈 Added request context hook needed by slowapi
-    """Processes incoming data streams, executes inference matrices, returns classifications."""
-    
-    # Baseline protection for pure whitespace extraction strings
-    if data.review.strip() == "":
+async def predict(
+    request: Request,
+    data: ReviewInput,
+):
+
+
+    if model is None or tokenizer is None:
+
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Review payload cannot consist purely of space strings."
+            status_code=503,
+            detail="Model unavailable",
         )
-    
+
+
+    text = data.review.strip()
+
+
+    if not text:
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Review cannot be empty",
+        )
+
+
     try:
-        # Leverage your Hugging Face dependencies to tokenise strings into raw tensors
-        inputs = tokenizer(data.review, return_tensors="pt", truncation=True, padding=True)
-        
-        # Execute the forward pass calculations across active neural networks in memory
-        outputs = model(**inputs)
-        
-        prediction_class_id = 1 
-        class_probabilities = [0.15, 0.85]
-        
-        return {
-            "prediction_class_id": prediction_class_id,
-            "class_probabilities": class_probabilities
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail=f"Inference Pipeline Process Failure: {str(e)}"
+
+
+        inputs = tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            padding=True,
         )
 
-# =========================================================================
-# TELEMETRY REGISTRATION (Must sit at bottom to intercept registered endpoints)
-# =========================================================================
-Instrumentator().instrument(app).expose(app)
 
+        with torch.no_grad():
+
+            outputs = model(**inputs)
+
+
+            probabilities = torch.softmax(
+                outputs.logits,
+                dim=1,
+            )
+
+
+            prediction = torch.argmax(
+                probabilities,
+                dim=1,
+            ).item()
+
+
+
+        return {
+
+            "prediction_class_id": prediction,
+
+            "class_probabilities":
+                probabilities[0]
+                .tolist(),
+
+        }
+
+
+
+    except Exception as e:
+
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail=f"Inference failed: {str(e)}"
+
+        )
+
+
+
+# ==========================================================
+# PROMETHEUS METRICS
+# ==========================================================
+
+Instrumentator().instrument(app).expose(app)

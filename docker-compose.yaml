@@ -1,62 +1,108 @@
+version: "3.9"
 
-  # 1. THE FASTAPI INFERENCE CORE
-  services:
-    api:
-      image: ${ECR_REGISTRY}/adr-nlp-api:latest
-      deploy:
-        resources:
-          limits:
-            memory: 4G
-      container_name: adr_nlp_api_serving
-      ports:
-      - "8000:8000"
-      environment:
-      - AWS_DEFAULT_REGION=eu-north-1
-      - MODEL_S3_BUCKET=adr-nlp-mlops-bucket-ayesha 
-      restart: always
-      healthcheck:
-        test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
-        interval: 10s
-        timeout: 5s
-        retries: 5
-        start_period: 15s
+services:
 
-  # 2. THE STREAMLIT FRONTEND
-  streamlit:
-    image: ${ECR_REGISTRY}/adr-nlp-frontend:latest
-    container_name: adr_nlp_frontend_streamlit
+  # ==========================================================
+  # FASTAPI MODEL SERVING
+  # ==========================================================
+  api:
+
+    image: ${ECR_REGISTRY}/adr-nlp-api:latest
+
+    container_name: adr_nlp_api
+
+    restart: unless-stopped
+
     ports:
-      - "8501:8501"
+      - "8000:8000"
+
     environment:
-      - API_URL=http://api:8000
+      AWS_DEFAULT_REGION: eu-north-1
+      MODEL_S3_BUCKET: adr-nlp-mlops-bucket-ayesha
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+
+
+  # ==========================================================
+  # STREAMLIT FRONTEND
+  # ==========================================================
+  streamlit:
+
+    image: ${ECR_REGISTRY}/adr-nlp-frontend:latest
+
+    container_name: adr_nlp_frontend
+
+    restart: unless-stopped
+
     depends_on:
       api:
         condition: service_healthy
-    restart: always
-  # 3. THE TELEMETRY WATCHDOG
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: adr_nlp_telemetry_prometheus
-    volumes:
-      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
+
+    environment:
+      API_URL: http://api:8000
+
     ports:
-      - "9090:9090"
+      - "8501:8501"
+
+
+
+  # ==========================================================
+  # PROMETHEUS
+  # ==========================================================
+  prometheus:
+
+    image: prom/prometheus:latest
+
+    container_name: adr_nlp_prometheus
+
+    restart: unless-stopped
+
     depends_on:
       - api
-    restart: always
 
-  # 4. THE VISUAL METRICS DASHBOARD
-  grafana:
-    image: grafana/grafana:latest
-    container_name: adr_nlp_visualization_grafana
-    ports:
-      - "3000:3000"
     volumes:
-      - grafana_data:/var/lib/grafana
+      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+
+    ports:
+      - "9090:9090"
+
+
+
+  # ==========================================================
+  # GRAFANA
+  # ==========================================================
+  grafana:
+
+    image: grafana/grafana:latest
+
+    container_name: adr_nlp_grafana
+
+    restart: unless-stopped
+
     depends_on:
       - prometheus
-    restart: always
 
-# GLOBAL STORAGE DECLARATIONS (Strictly at the root level, flush left)
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - grafana-storage:/var/lib/grafana
+
+
+
 volumes:
-  grafana_data:
+
+  grafana-storage:
+  
