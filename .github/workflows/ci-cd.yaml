@@ -99,8 +99,6 @@ jobs:
 
     needs: code-quality-and-test
 
-    if: github.event_name == 'push'
-
     runs-on: ubuntu-latest
 
 
@@ -176,7 +174,6 @@ jobs:
 
 
 
-
   # ==========================================================
   # 3. DEPLOY TO EC2
   # ==========================================================
@@ -186,6 +183,8 @@ jobs:
 
 
     needs: build-and-push
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     runs-on: ubuntu-latest
 
@@ -243,7 +242,6 @@ jobs:
 
 
 
-
       - name: Restart production stack
 
 
@@ -297,12 +295,10 @@ jobs:
 
 
 
-
             echo "Pulling latest images"
 
 
             docker compose pull
-
 
 
 
@@ -319,3 +315,4 @@ jobs:
 
 
             docker ps
+
