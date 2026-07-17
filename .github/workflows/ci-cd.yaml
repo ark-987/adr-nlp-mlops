@@ -26,6 +26,9 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      SKIP_MODEL_BOOTSTRAP: "1"  # Prevent heavy model download/extraction during unit tests
+
     steps:
 
       - name: Checkout repository
@@ -40,6 +43,13 @@ jobs:
           cache: pip
 
 
+      - name: Print runner disk usage (before installs)
+        run: |
+          df -h /
+          df -h /tmp || true
+          echo "Disk usage (top-level):"
+          du -sh . || true
+
       - name: Install dependencies (with explicit tokenizer installs + debug)
 
         run: |
@@ -49,19 +59,24 @@ jobs:
           pip install flake8 pytest
 
           if [ -f requirements.txt ]; then
-            pip install -r requirements.txt || true
+            pip install -r requirements.txt
           fi
 
           if [ -f requirements_dev.txt ]; then
-            pip install -r requirements_dev.txt || true
+            pip install -r requirements_dev.txt
           fi
 
           # Explicitly ensure tokenizer conversion deps are present and show versions
-          pip install --no-cache-dir "sentencepiece>=0.1.99" || pip show sentencepiece || true
-          pip install --no-cache-dir "tiktoken>=0.4.0" || pip show tiktoken || true
+          pip install --no-cache-dir "sentencepiece>=0.1.99"
+          pip install --no-cache-dir "tiktoken>=0.4.0"
 
           echo "---- pip freeze (show installed tokenizer-related packages) ----"
           pip freeze | sed -n '/sentencepiece/,/tiktoken/p' || pip freeze | grep -E 'sentencepiece|tiktoken' || true
+
+          echo "---- Disk usage (after installs) ----"
+          df -h /
+          df -h /tmp || true
+          du -sh . || true
 
 
       - name: Run flake8
