@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 # Mock the model loading BEFORE importing the app
 with patch("src.api.download_and_extract_model_from_s3") as mock_download, \
-     patch("src.api.AutoTokenizer.from_pretrained") as mock_tokenizer_load, \
-     patch("src.api.AutoModelForSequenceClassification.from_pretrained") as mock_model_load:
+     patch("transformers.AutoTokenizer.from_pretrained") as mock_tokenizer_load, \
+     patch("transformers.AutoModelForSequenceClassification.from_pretrained") as mock_model_load:
     
     # Configure mocks to return successfully
     mock_download.return_value = True
