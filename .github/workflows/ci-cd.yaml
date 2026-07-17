@@ -218,7 +218,7 @@ jobs:
       - name: Copy deployment files to EC2
 
 
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@master
 
 
         with:
@@ -231,21 +231,16 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
 
 
-          source: |
+          source: "docker-compose.yaml,config/prometheus.yaml"
 
-            docker-compose.yaml
-
-            config/prometheus.yaml
-
-
-          target: /home/ubuntu
+          target: "/home/ubuntu"
 
 
 
       - name: Restart production stack
 
 
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@master
 
 
         with:
