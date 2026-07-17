@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
+import torch
 
 # Mock the model loading BEFORE importing the app
 with patch("src.api.download_and_extract_model_from_s3") as mock_download, \
@@ -43,14 +44,28 @@ def test_prometheus_metrics_gateway():
 # =========================================================================
 # 2. MODEL INFERENCE GATES (MOCKED FOR CI/CD PIPELINES)
 # =========================================================================
-@patch("src.api.model")
-@patch("src.api.tokenizer")
-def test_model_inference_positive_adr(mock_tokenizer, mock_model):
+@patch("torch.softmax")
+@patch("torch.argmax")
+def test_model_inference_positive_adr(mock_argmax, mock_softmax):
     """Verify that a positive adverse drug reaction payload processes cleanly."""
-    # Configure mock model to return logits
+    # Mock torch operations
+    mock_softmax.return_value = torch.tensor([[0.1, 0.9]])
+    mock_argmax.return_value = torch.tensor([1])
+    
+    # Configure the global mocked model and tokenizer
+    import src.api
+    
+    # Mock tokenizer output
+    mock_inputs = {
+        "input_ids": torch.tensor([[101, 102]]),
+        "attention_mask": torch.tensor([[1, 1]])
+    }
+    src.api.tokenizer.return_value = mock_inputs
+    
+    # Mock model output with logits
     mock_output = MagicMock()
-    mock_output.logits = MagicMock()
-    mock_model.return_value = mock_output
+    mock_output.logits = torch.tensor([[2.0, 5.0]])  # Logits for 2 classes
+    src.api.model.return_value = mock_output
     
     payload = {
         "review": "I took this medication and developed a severe skin rash within an hour."
