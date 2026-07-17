@@ -2,9 +2,18 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
 
-# Import your FastAPI app object directly from your codebase layout
-from src.api import app 
-
+# Mock the model loading BEFORE importing the app
+with patch("src.api.download_and_extract_model_from_s3") as mock_download, \
+     patch("src.api.AutoTokenizer.from_pretrained") as mock_tokenizer_load, \
+     patch("src.api.AutoModelForSequenceClassification.from_pretrained") as mock_model_load:
+    
+    # Configure mocks to return successfully
+    mock_download.return_value = True
+    mock_tokenizer_load.return_value = MagicMock()
+    mock_model_load.return_value = MagicMock()
+    
+    # Now import the app after mocks are in place
+    from src.api import app
 
 # Initialize the automated test client runner
 client = TestClient(app)
