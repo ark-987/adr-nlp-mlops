@@ -30,6 +30,7 @@ from slowapi.util import get_remote_address
 from src.config_loader import load_config
 from src.s3_utils import download_and_extract_model_from_s3
 
+from unittest.mock import MagicMock
 
 
 # ==========================================================
@@ -68,6 +69,19 @@ async def lifespan(app: FastAPI):
 
     print("[BOOT] Starting ADR NLP API...")
 
+    # Allow tests/CI to skip heavy model bootstrap to avoid disk/network issues
+    skip_bootstrap = os.getenv("SKIP_MODEL_BOOTSTRAP", "0").lower() in ("1", "true", "yes")
+
+    if skip_bootstrap:
+        print("[BOOT] SKIP_MODEL_BOOTSTRAP set — skipping model download and load (tests/CI).")
+        # Provide lightweight mocks so health checks and handler wiring succeed
+        tokenizer = MagicMock()
+        model = MagicMock()
+        try:
+            yield
+        finally:
+            print("[SHUTDOWN] API stopped.")
+        return
 
     try:
 
@@ -147,9 +161,7 @@ async def lifespan(app: FastAPI):
         raise e
 
 
-
     yield
-
 
 
     print(
@@ -305,7 +317,6 @@ async def predict(
                 .tolist(),
 
         }
-
 
 
     except Exception as e:
