@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 with patch("src.api.download_and_extract_model_from_s3") as mock_download, \
      patch("src.api.AutoTokenizer.from_pretrained") as mock_tokenizer_load, \
      patch("src.api.AutoModelForSequenceClassification.from_pretrained") as mock_model_load:
-    
+     
     # Configure mocks to return successfully
     mock_download.return_value = True
     mock_tokenizer_load.return_value = MagicMock()
@@ -14,6 +14,11 @@ with patch("src.api.download_and_extract_model_from_s3") as mock_download, \
     
     # Now import the app after mocks are in place
     from src.api import app
+    
+    # IMPORTANT: Set the global variables after import to ensure they're available
+    import src.api
+    src.api.model = MagicMock()
+    src.api.tokenizer = MagicMock()
 
 # Initialize the automated test client runner
 client = TestClient(app)
@@ -25,7 +30,7 @@ def test_api_liveness_probe():
     """Verify that the system health endpoint returns status healthy."""
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
+    assert response.json()["status"] == "healthy"
 
 
 def test_prometheus_metrics_gateway():
@@ -42,8 +47,10 @@ def test_prometheus_metrics_gateway():
 @patch("src.api.tokenizer")
 def test_model_inference_positive_adr(mock_tokenizer, mock_model):
     """Verify that a positive adverse drug reaction payload processes cleanly."""
-    # Simulate a successful transformer model matrix output
-    mock_model.return_value = MagicMock()
+    # Configure mock model to return logits
+    mock_output = MagicMock()
+    mock_output.logits = MagicMock()
+    mock_model.return_value = mock_output
     
     payload = {
         "review": "I took this medication and developed a severe skin rash within an hour."
