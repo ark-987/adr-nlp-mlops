@@ -46,16 +46,15 @@ The architecture bridges **Google Cloud Platform (GCS)** for early-stage raw dat
 
 ---
 
-## CRITICAL PRODUCTION SAFETY WARNING 
 
-The production workflow splits duties across cloud layers to protect assets and ensure organizational alignment:
-* **Training & Data Archive Phase**: Raw text data and final trained models are housed inside **Google Cloud Storage (GCS)**.
-* **Production Deployment Serving Phase**: The containerized runtime pulls weights directly from an **Amazon S3** bucket to bypass organization credential constraints.
 
-**DO NOT run the training pipeline (`main.py` / `src/training_pipeline.py`) locally using default production settings.** Because the configuration file is unified, executing an unauthorized training run will overwrite your baseline weights in GCS.
+
+* **Development/Training & Data Archive Phase**: Raw text data and final trained models are housed inside **Google Cloud Storage (GCS)**.
+* **Production Deployment Serving Phase**: The containerized runtime pulls weights directly from an **Amazon S3** bucket 
+
 
 ### How to Run a Safe Local Infrastructure Test:
-The system features local fallback configurations that bypass the cloud download layers if no AWS keys are passed. To explicitly protect your remote production buckets during manual modifications, open `config/pipeline.yaml` and verify your local mock destination values:
+The system features local fallback configurations that bypass the cloud download layers if no AWS keys are passed. To explicitly protect remote production buckets during manual modifications, open `config/pipeline.yaml` and verify your local mock destination values:
 ```yaml
 aws:
   bucket_name: "test-dummy-s3-bucket"
