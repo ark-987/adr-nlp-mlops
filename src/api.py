@@ -198,15 +198,33 @@ app.add_exception_handler(
 # CORS
 # ==========================================================
 
+# Make CORS configurable and safe by default.
+# Environment variables:
+# - ALLOWED_ORIGINS: comma-separated list (e.g. "https://app.example.com,http://localhost:8501")
+# - ALLOW_ALL_ORIGINS: if "true"/"1" allows "*" (explicit opt-in, dev-only)
+# - CORS_ALLOW_CREDENTIALS: "true"/"1" or "false"/"0" (default True)
+_allow_all = os.getenv("ALLOW_ALL_ORIGINS", "false").lower() in ("1", "true", "yes")
+_env_origins = os.getenv("ALLOWED_ORIGINS", "").strip()
+if _allow_all:
+    allowed_origins = ["*"]
+elif _env_origins:
+    allowed_origins = [o.strip() for o in _env_origins.split(",") if o.strip()]
+else:
+    # safe default for local dev (Streamlit + local API)
+    allowed_origins = ["http://localhost:8501", "http://127.0.0.1:8501"]
+
+_env_allow_credentials = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() in ("1", "true", "yes")
+if allowed_origins == ["*"] and _env_allow_credentials:
+    allow_credentials = False
+    print("[CORS] WARNING: ALLOW_ALL_ORIGINS set but credentials disabled automatically for safety.")
+else:
+    allow_credentials = _env_allow_credentials
+
 app.add_middleware(
     CORSMiddleware,
-
-    allow_origins=["*"],
-
-    allow_credentials=True,
-
+    allow_origins=allowed_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
-
     allow_headers=["*"],
 )
 

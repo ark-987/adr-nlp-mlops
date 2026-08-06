@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
+import torch
 
 # Mock the model loading BEFORE importing the app
 with patch("src.api.download_and_extract_model_from_s3") as mock_download, \
@@ -14,6 +15,11 @@ with patch("src.api.download_and_extract_model_from_s3") as mock_download, \
     
     # Now import the app after mocks are in place
     from src.api import app
+    
+    # IMPORTANT: Set the global variables after import to ensure they're available
+    import src.api
+    src.api.model = MagicMock()
+    src.api.tokenizer = MagicMock()
 
 
 # =========================================================================
@@ -48,9 +54,9 @@ def test_prometheus_metrics_gateway():
 # =========================================================================
 # 2. MODEL INFERENCE GATES (MOCKED FOR CI/CD PIPELINES)
 # =========================================================================
-@patch("src.api.model")
-@patch("src.api.tokenizer")
-def test_model_inference_positive_adr(mock_tokenizer, mock_model):
+@patch("torch.softmax")
+@patch("torch.argmax")
+def test_model_inference_positive_adr(mock_argmax, mock_softmax):
     """Verify that a positive adverse drug reaction payload processes cleanly."""
     # Configure mocks so app startup or handlers can use them
     mock_model.return_value = MagicMock()

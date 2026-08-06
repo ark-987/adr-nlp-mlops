@@ -122,8 +122,6 @@ jobs:
 
     needs: code-quality-and-test
 
-    if: github.event_name == 'push'
-
     runs-on: ubuntu-latest
 
 
@@ -199,7 +197,6 @@ jobs:
 
 
 
-
   # ==========================================================
   # 3. DEPLOY TO EC2
   # ==========================================================
@@ -209,6 +206,8 @@ jobs:
 
 
     needs: build-and-push
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     runs-on: ubuntu-latest
 
@@ -242,7 +241,7 @@ jobs:
       - name: Copy deployment files to EC2
 
 
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@master
 
 
         with:
@@ -255,22 +254,16 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
 
 
-          source: |
+          source: "docker-compose.yaml,config/prometheus.yaml"
 
-            docker-compose.yaml
-
-            config/prometheus.yaml
-
-
-          target: /home/ubuntu
-
+          target: "/home/ubuntu"
 
 
 
       - name: Restart production stack
 
 
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@master
 
 
         with:
@@ -320,12 +313,10 @@ jobs:
 
 
 
-
             echo "Pulling latest images"
 
 
             docker compose pull
-
 
 
 
@@ -342,3 +333,4 @@ jobs:
 
 
             docker ps
+

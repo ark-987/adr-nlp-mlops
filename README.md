@@ -42,20 +42,19 @@ flowchart TD
 
 An end-to-end hybrid-cloud MLOps pipeline designed to train, track, and deploy a clinical sequence classification model (BioBERT) that detects Adverse Drug Reactions from patient reviews. 
 
-The architecture bridges **Google Cloud Platform (GCS)** for early-stage raw data ingestion, preprocessing, and training artifacts with **Amazon Web Services (AWS S3)** for low-latency production container inference. The pipeline integrates **DVC** for data reproducibility, **MLflow** for experiment tracking, **FastAPI + Streamlit** for serving, **Docker** for container isolation, and a **Prometheus + Grafana** stack for live telemetry monitoring.
+The architecture bridges **Google Cloud Platform (GCS)** for early-stage raw data ingestion, preprocessing, and training artifacts with **Amazon Web Services (AWS EC2)** for low-latency production container inference. The pipeline integrates **DVC** for data reproducibility, **MLflow** for experiment tracking, **FastAPI + Streamlit** for serving, **Docker** for container isolation, and a **Prometheus + Grafana** stack for live telemetry monitoring.
 
 ---
 
-## CRITICAL PRODUCTION SAFETY WARNING 
 
-The production workflow splits duties across cloud layers to protect assets and ensure organizational alignment:
-* **Training & Data Archive Phase**: Raw text data and final trained models are housed inside **Google Cloud Storage (GCS)**.
-* **Production Deployment Serving Phase**: The containerized runtime pulls weights directly from an **Amazon S3** bucket to bypass organization credential constraints.
 
-**DO NOT run the training pipeline (`main.py` / `src/training_pipeline.py`) locally using default production settings.** Because the configuration file is unified, executing an unauthorized training run will overwrite your baseline weights in GCS.
+
+* **Development/Training & Data Archive Phase**: Raw text data and final trained models are housed inside **Google Cloud Storage (GCS)**. Proceeding with Google free tier and limited RAM on local computer lead to adopting AWS cloud infrastructure for deployment. DVC already logged development in GCP therefore development not rerun in AWS.
+* **Production Deployment Serving Phase**: The containerized runtime pulls weights directly from an **Amazon S3** bucket into ECR and SSH into EC2 instance. 
+
 
 ### How to Run a Safe Local Infrastructure Test:
-The system features local fallback configurations that bypass the cloud download layers if no AWS keys are passed. To explicitly protect your remote production buckets during manual modifications, open `config/pipeline.yaml` and verify your local mock destination values:
+The system features local fallback configurations that bypass the cloud download layers if no AWS keys are passed. To explicitly protect remote production buckets during manual modifications, open `config/pipeline.yaml` and verify local mock destination values:
 ```yaml
 aws:
   bucket_name: "test-dummy-s3-bucket"
@@ -141,7 +140,7 @@ adr-nlp-mlops/
 * Your laptop's active AWS credentials configured (`~/.aws` containing valid keys) to stream production weights.
 
 ### 2. Dependency Separation
-Your environment splits code requirements to keep your deployment layers lean:
+Code requirements split between development and deployment:
 * **Development/Training Phase**: Install `requirements_dev.txt` (Installs `google-cloud-storage`, `dvc[gcs,s3]`, PyTorch, and training frameworks).
 * **Production Serving Phase**: The Docker images use `requirements.txt` to eliminate heavy multi-cloud footprint overhead.
 
@@ -174,7 +173,7 @@ Once the health check switches to healthy inside `docker compose ps`, access you
 ##  Pipeline Elements
 
 ### Phase 1: Data Ingestion & Quality Gates (GCP Core)
-* **`src/ingest.py`**: Interacts with remote Google Cloud Storage endpoints to pull raw `csv` training datasets down from your GCS data lake bucket into local workspace staging targets.
+* **`src/ingest.py`**: pulls raw `csv` training datasets down from your GCS data lake bucket into local workspace.
 * **`src/ge_validator.py`**: Executes **Great Expectations** data validation checks, verifying strings and schemas directly inside your ingestion stage before deep learning steps execute.
 
 ### Phase 2: Serving & Production Monitoring (AWS Core)
