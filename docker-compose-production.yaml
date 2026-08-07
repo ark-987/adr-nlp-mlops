@@ -1,26 +1,36 @@
 version: '3.8'
 
 services:
+  # ==========================================================
+  # FASTAPI MODEL SERVING (AWS EC2 INSULATED RUNTIME)
+  # ==========================================================
   api:
-    # 1. Swap 'build' for your secure AWS ECR Registry path
     image: ${ECR_REGISTRY}/adr-nlp-api:latest
-
     container_name: adr_nlp_api_serving
     ports:
       - "8000:8000"
     environment:
       - AWS_DEFAULT_REGION=eu-north-1
-      - ALLOW_MOCK_MODE=false # Enforces real model download on EC2
-    # 2. Removed the local './data' volume mount completely for production security
+      - ALLOW_MOCK_MODE=false
+      - SKIP_MODEL_BOOTSTRAP=false
+      # Rate limiting back-end memory buffer config
+      - RATE_LIMIT_STORAGE_URL=memory://
+      # Explicit production CORS protection (Comma separated list)
+      # If your Streamlit app is accessed via an EC2 Public IP or Domain, swap localhost here:
+      - ALLOWED_ORIGINS=http://localhost:8501,http://127.0.0.1:8501
+      - ALLOW_ALL_ORIGINS=false
+      - CORS_ALLOW_CREDENTIALS=true
     restart: always
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 5
-      # 3. Increased to 180s to give the EC2 instance plenty of time to download the real zip from S3
-      start_period: 180s 
+      start_period: 180s  # Gives plenty of time for S3 downloads to complete over network channels
 
+  # ==========================================================
+  # STREAMLIT FRONTEND
+  # ==========================================================
   streamlit:
     image: ${ECR_REGISTRY}/adr-nlp-frontend:latest
     container_name: adr_nlp_frontend_streamlit
@@ -33,14 +43,35 @@ services:
         condition: service_healthy
     restart: always
 
+  # ==========================================================
+  # PROMETHEUS SCRAPER
+  # ==========================================================
   prometheus:
     image: prom/prometheus:latest
+    container_name: adr_nlp_prometheus_production
     ports:
       - "9090:9090"
+    volumes:
+      # CRITICAL: Restored config mapping so Prometheus targets your FastAPI server
+      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
     restart: always
 
+  # ==========================================================
+  # GRAFANA MONITORING CANVAS
+  # ==========================================================
   grafana:
     image: grafana/grafana:latest
+    container_name: adr_nlp_grafana_production
     ports:
       - "3000:3000"
+    environment:
+      # Hardens Grafana out-of-the-box by disabling default security settings on EC2 boot
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin_change_me_production}
+    volumes:
+      # Persists metrics dashboards if the container restarts
+      - grafana-storage:/var/lib/grafana
     restart: always
+
+volumes:
+  grafana-storage:
+
