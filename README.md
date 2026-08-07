@@ -140,13 +140,13 @@ adr-nlp-mlops/
 ```
 
 ---
-
 ##  Getting Started (Local Runtime Multi-Container Boot)
 
 ### 1. Prerequisites
 * Python 3.10+ installed.
 * Docker Desktop installed, configured with WSL2 background virtualization.
-* Your laptop's active AWS credentials configured (`~/.aws` containing valid keys) to stream production weights.
+* Your laptop's active **AWS credentials** configured (`~/.aws` containing valid keys) to stream production weights.
+* **GCP Access:** Valid Google Cloud credentials configured, *or* rely on the integrated local workspace mock fallbacks (`data/mock_gcs_bucket/`) for offline development.
 
 ### 2. Dependency Separation
 Code requirements split between development and deployment:
@@ -155,7 +155,7 @@ Code requirements split between development and deployment:
 
 ```bash
 # Clone the repository
-git clone <https://github.com/ark-987/adr-nlp-mlops>
+git clone https://github.com/ark-987/adr-nlp-mlops
 cd adr-nlp-mlops
 
 # Create and activate virtual environment
@@ -175,16 +175,7 @@ Once the health check switches to healthy inside `docker compose ps`, access you
 * **Streamlit UI Application Interface**: `http://localhost:8501`
 * **FastAPI Swagger API Documentation**: `http://localhost:8000/docs`
 * **Prometheus Metrics Scraper**: `http://localhost:9090`
-* **Grafana Visual Analytics Canvas**: `http://localhost:3000` (Login: `admin` / `admin`)
+* **Grafana Visual Analytics Canvas**: `http://localhost:3000` *(Local Sandbox Sandbox Login: admin / admin — change upon initial boot)*
 
----
-
-##  Pipeline Elements
-
-### Phase 1: Data Ingestion & Quality Gates (GCP Core)
-* **`src/ingest.py`**: pulls raw `csv` training datasets down from your GCS data lake bucket into local workspace.
-* **`src/ge_validator.py`**: Executes **Great Expectations** data validation checks, verifying strings and schemas directly inside your ingestion stage before deep learning steps execute.
-
-### Phase 2: Serving & Production Monitoring (AWS Core)
 
 
