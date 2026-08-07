@@ -3,23 +3,26 @@ version: "3.9"
 services:
 
   # ==========================================================
-  # FASTAPI MODEL SERVING
+  # FASTAPI MODEL SERVING (LOCAL DEVELOPMENT LAYER)
   # ==========================================================
   api:
-
     image: ${ECR_REGISTRY}/adr-nlp-api:latest
-
     container_name: adr_nlp_api
-
     restart: unless-stopped
-
     ports:
       - "8000:8000"
-
     environment:
-      AWS_DEFAULT_REGION: eu-north-1
-      MODEL_S3_BUCKET: adr-nlp-mlops-bucket-ayesha
-
+      - AWS_DEFAULT_REGION=eu-north-1
+      - MODEL_S3_BUCKET=adr-nlp-mlops-bucket-ayesha
+      # LOCAL TESTING FLAGS:
+      # Set to 'true' during local testing to skip S3 and run on MagicMocks instantly
+      - SKIP_MODEL_BOOTSTRAP=false
+      - RATE_LIMIT_STORAGE_URL=memory://
+      # Safe wildcard allow strictly for local isolated dashboard debugging
+      - ALLOW_ALL_ORIGINS=true 
+    volumes:
+      # Mounts your workspace data folder so the API container can reach your local mock S3 cache
+      - ./data:/app/data:ro
     healthcheck:
       test:
         [
@@ -33,76 +36,50 @@ services:
       retries: 5
       start_period: 30s
 
-
-
   # ==========================================================
   # STREAMLIT FRONTEND
   # ==========================================================
   streamlit:
-
     image: ${ECR_REGISTRY}/adr-nlp-frontend:latest
-
     container_name: adr_nlp_frontend
-
     restart: unless-stopped
-
     depends_on:
       api:
         condition: service_healthy
-
     environment:
       API_URL: http://api:8000
-
     ports:
       - "8501:8501"
 
-
-
   # ==========================================================
-  # PROMETHEUS
+  # PROMETHEUS SCRAPER
   # ==========================================================
   prometheus:
-
     image: prom/prometheus:latest
-
     container_name: adr_nlp_prometheus
-
     restart: unless-stopped
-
     depends_on:
       - api
-
     volumes:
       - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
-
     ports:
       - "9090:9090"
 
-
-
   # ==========================================================
-  # GRAFANA
+  # GRAFANA MONITORING CANVAS
   # ==========================================================
   grafana:
-
     image: grafana/grafana:latest
-
     container_name: adr_nlp_grafana
-
     restart: unless-stopped
-
     depends_on:
       - prometheus
-
     ports:
       - "3000:3000"
-
     volumes:
       - grafana-storage:/var/lib/grafana
 
-
-
 volumes:
-
   grafana-storage:
+
   
