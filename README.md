@@ -36,6 +36,51 @@ flowchart TD
     G3 --> node4
 
 ```
+flowchart TD
+    %% Define External Infrastructure
+    subgraph GitHub_Actions [CI/CD: GitHub Actions]
+        direction TB
+        G1[Trigger: Push to Main] --> G2[Run Tests & Linting]
+        G2 --> G3[Run DVC Pipeline Checks]
+    end
+
+    %% DVC Data & Training Pipeline (GCP Cloud Core)
+    subgraph DVC_Pipeline [Data & Training: DVC on GCP]
+        node4[ingest: from GCS] --> node1[data_pipeline]
+        node1 --> node7[split]
+        node7 --> node8[train: saves to GCS]
+        node8 --> node2[explainability]
+        node7 --> node2
+    end
+
+    %% Experiment Tracking Layer
+    subgraph Tracking [Tracking: MLflow Server]
+        MFT[MLflow Tracking: Logs Hyperparameters & Metrics]
+    end
+    node8 -.->|Log Runs| MFT
+
+    %% Deployment Infrastructure (AWS Production Core)
+    subgraph Deployment [Deployment: Docker, ECR & FastAPI on AWS]
+        node8 -->|CI/CD Sync to S3| S3[(Amazon S3 Bucket)]
+        node5[package_api: Docker Build] --> ECR[(Amazon ECR Registry)]
+        ECR -->|Pull Docker Image| EC2[Amazon EC2 Instance]
+        S3 -->|Download Model Weights| EC2
+        
+        subgraph Docker_Container [Inside Running Docker Container]
+            CORS[CORS Middleware Layer] --> F1[FastAPI Server & Uvicorn]
+        end
+        EC2 --> Docker_Container
+    end
+
+    %% Orchestration & Monitoring
+    subgraph Operations [Operations: Monitoring Stack]
+        node5 --> node6[setup_monitoring]
+        F1 -- Metrics --> M1[Prometheus]
+        M1 -- Dashboard --> M2[Grafana]
+    end
+
+    %% Connect CI/CD to Pipeline
+    G3 --> node4
 
 
 # BioBERT Adverse Drug Reaction (ADR) Classifier 
