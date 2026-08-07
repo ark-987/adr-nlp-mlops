@@ -1,17 +1,27 @@
-# --- CORE PROCESSING & UTILITIES ---
-pyyaml>=6.0
-boto3>=1.34.0
+# =========================================================================
+# LIGHTWEIGHT AWS PRODUCTION RUNTIME REQUIREMENTS (NO DEVELOPMENT BLOAT)
+# =========================================================================
 
-# --- MACHINE LEARNING INFERENCE ---(removed torch dependency to avoid overwriting the CPU version installed in Dockerfile)
-transformers>=4.30.0
-sentencepiece>=0.1.99
-tiktoken>=0.4.0
-datasets>=2.12.0
+# 1. Force the ultra-lean CPU-only repository index for PyTorch
+--extra-index-url https://download.pytorch.org/whl/cpu
 
-# --- SERVING LAYER, TELEMETRY & UI ---
-fastapi>=0.110.0
-pydantic>=2.6.0
-uvicorn[standard]>=0.28.0
-prometheus-fastapi-instrumentator>=7.0.0
-streamlit>=1.30.0
-requests>=2.31.0
+# 2. Optimized Machine Learning Core (CPU-Bounded Architecture Layers)
+torch==2.3.1+cpu
+transformers==4.41.2
+pydantic==2.7.4
+
+# 3. High-Performance Web Serving Engine Core
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+
+# 4. Security Gateway Middleware (Per-IP Dynamic Rate Limiting Protection)
+slowapi==0.1.9
+
+# 5. Live Infrastructure Monitoring Telemetry Data Stream Scrapers
+prometheus-fastapi-instrumentator==7.0.0
+
+# 6. Base Cloud Infrastructure Drivers & Dynamic Local Environment Parsers
+boto3==1.34.122
+pyyaml==6.0.1
+pandas==2.2.2
+
