@@ -1,7 +1,8 @@
 # Project Name
 adr-nlp
 
-```mermaid
+mermaid
+```
 flowchart TD
     %% Define External Infrastructure
     subgraph GitHub_Actions [CI/CD: GitHub Actions]
@@ -47,16 +48,13 @@ flowchart TD
 
     %% Connect CI/CD to Pipeline
     G3 --> node4
-
+```
 
 # BioBERT Adverse Drug Reaction (ADR) Classifier 
 
 An end-to-end hybrid-cloud MLOps pipeline designed to train, track, and deploy a clinical sequence classification model (BioBERT) that detects Adverse Drug Reactions from patient reviews. 
 
-The architecture bridges **Google Cloud Platform (GCS)** for early-stage raw data ingestion, preprocessing, and training artifacts with **Amazon Web Services (AWS EC2)** for low-latency production container inference. The pipeline integrates **DVC** for data reproducibility, **MLflow** for experiment tracking, **FastAPI + Streamlit** for serving, **Docker** for container isolation, and a **Prometheus + Grafana** stack for live telemetry monitoring.
-
----
-
+The architecture bridges **Google Cloud Platform (GCS)** for early-stage raw data ingestion, preprocessing, and training artifacts with **Amazon Web Services (AWS EC2)** for low-latency production container inference. The pipeline integrates **DVC** for data reproducibility, **MLflow** for experiment tracking, **FastAPI + Streamlit** for serving, **Docker** for container isolation, and a **Prometheus + Grafana** stack for live telemetry monitoring
 
 
 
