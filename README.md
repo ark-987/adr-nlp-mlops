@@ -1,8 +1,7 @@
 # Project Name
 adr-nlp
 
-mermaid
-```
+```mermaid
 flowchart TD
     %% Define External Infrastructure
     subgraph GitHub_Actions [CI/CD: GitHub Actions]
