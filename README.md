@@ -19,40 +19,6 @@ flowchart TD
         node7 --> node2
     end
 
-    %% Deployment Infrastructure (AWS Production Core)
-    subgraph Deployment [Deployment: Docker & FastAPI on AWS]
-        node8 -->|CI/CD Sync to S3| node5[package_api: Docker Build]
-        node5 --> F1[FastAPI Server: Pulls from S3]
-    end
-
-    %% Orchestration & Monitoring
-    subgraph Operations [Operations: Monitoring Stack]
-        node5 --> node6[setup_monitoring]
-        F1 -- Metrics --> M1[Prometheus]
-        M1 -- Dashboard --> M2[Grafana]
-    end
-
-    %% Connect CI/CD to Pipeline
-    G3 --> node4
-
-```
-flowchart TD
-    %% Define External Infrastructure
-    subgraph GitHub_Actions [CI/CD: GitHub Actions]
-        direction TB
-        G1[Trigger: Push to Main] --> G2[Run Tests & Linting]
-        G2 --> G3[Run DVC Pipeline Checks]
-    end
-
-    %% DVC Data & Training Pipeline (GCP Cloud Core)
-    subgraph DVC_Pipeline [Data & Training: DVC on GCP]
-        node4[ingest: from GCS] --> node1[data_pipeline]
-        node1 --> node7[split]
-        node7 --> node8[train: saves to GCS]
-        node8 --> node2[explainability]
-        node7 --> node2
-    end
-
     %% Experiment Tracking Layer
     subgraph Tracking [Tracking: MLflow Server]
         MFT[MLflow Tracking: Logs Hyperparameters & Metrics]
