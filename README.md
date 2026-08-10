@@ -1,4 +1,4 @@
-# Project Name
+# Adverse Drug Reaction Classifier: Developed and Deployed with Automation
 adr-nlp
 
 ```mermaid
@@ -161,7 +161,7 @@ cd adr-nlp-mlops
 python -m venv venv
 .\venv\Scripts\activate  # On Mac/Linux: source venv/bin/activate
 
-# Install Full Development and Training Stack (Includes GCP + AWS tools)
+# Install Full Development and Training Stack
 pip install -r requirements_dev.txt
 ```
 
