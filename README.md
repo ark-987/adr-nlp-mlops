@@ -57,20 +57,10 @@ The architecture bridges **Google Cloud Platform (GCS)** for early-stage raw dat
 
 
 
-* **Development/Training & Data Archive Phase**: Raw text data and final trained models are housed inside **Google Cloud Storage (GCS)**. Proceeding with Google free tier and limited RAM on local computer lead to adopting AWS cloud infrastructure for deployment. DVC already logged development in GCP therefore development not rerun in AWS.
+* **Development/Training & Data Archive Phase**: The Drugs.com dataset of unstructured medical reviews was ingested, cleaned and normalized. Then, BioBERT was fine-tuned on high-quality labeled biomedical entities with d4data/biomedical-ner-all. Fine-tuning adjusted the BioBERT weights to map its embeddings to specific biomedical entity labels. The cleaned data was then used to train the model to predict the classification of reviews as either having or not having mention of an adverse drug reaction.
+Raw text data and final trained models are housed inside **Google Cloud Storage (GCS)**. Google free tier restricts IAM permissions and limited local RAM led to adopting AWS cloud infrastructure for deployment. DVC already logged model development with MLOPs in GCP therefore development was not re-run in AWS.
 * **Production Deployment Serving Phase**: The containerized runtime pulls weights directly from an **Amazon S3** bucket into ECR and SSH into EC2 instance. 
 
-
-### How to Run a Safe Local Infrastructure Test:
-The system features local fallback configurations that bypass the cloud download layers if no AWS keys are passed. To explicitly protect remote production buckets during manual modifications, open `config/pipeline.yaml` and verify local mock destination values:
-```yaml
-aws:
-  bucket_name: "test-dummy-s3-bucket"
-  model_s3_path: "models/test_dummy_model.zip"
-
-paths:
-  model_dir: "models/adr-nlp-final"
-```
 
 ##  Project Architecture & Layout
 
