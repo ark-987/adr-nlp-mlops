@@ -48,10 +48,7 @@ tokenizer = None
 
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri=os.getenv(
-        "RATE_LIMIT_STORAGE_URL",
-        "memory://"
-    ),
+    storage_uri="memory://",
 )
 
 
@@ -348,4 +345,4 @@ async def predict(
 # PROMETHEUS METRICS
 # ==========================================================
 
-Instrumentator().instrument(app).expose(app)
+Instrumentor().instrument(app).expose(app)
